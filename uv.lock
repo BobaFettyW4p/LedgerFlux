@@ -64,7 +64,6 @@ source = { virtual = "." }
 dependencies = [
     { name = "asyncio" },
     { name = "fastapi" },
-    { name = "quickfix" },
     { name = "ruff" },
     { name = "websockets" },
 ]
@@ -73,7 +72,6 @@ dependencies = [
 requires-dist = [
     { name = "asyncio", specifier = ">=4.0.0" },
     { name = "fastapi", specifier = ">=0.116.1" },
-    { name = "quickfix", specifier = ">=1.15.1" },
     { name = "ruff", specifier = ">=0.12.11" },
     { name = "websockets", specifier = ">=15.0.1" },
 ]
@@ -157,12 +155,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/3c/b2/5309c905a93811524a49b4e031e9851a6b00ff0fb668794472ea7746b448/pydantic_core-2.33.2-pp311-pypy311_pp73-musllinux_1_1_x86_64.whl", hash = "sha256:82f68293f055f51b51ea42fafc74b6aad03e70e191799430b90c13d643059ebb", size = 2238715, upload-time = "2025-04-23T18:33:28.656Z" },
     { url = "https://files.pythonhosted.org/packages/32/56/8a7ca5d2cd2cda1d245d34b1c9a942920a718082ae8e54e5f3e5a58b7add/pydantic_core-2.33.2-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:329467cecfb529c925cf2bbd4d60d2c509bc2fb52a20c1045bf09bb70971a9c1", size = 2066757, upload-time = "2025-04-23T18:33:30.645Z" },
 ]
-
-[[package]]
-name = "quickfix"
-version = "1.15.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/62/b0/caf2dfae8779551f6e1d2bc78668d8f5a2303d21311fdd54345722b68cbc/quickfix-1.15.1.tar.gz", hash = "sha256:e3564ad2dd155892dc74496d6f4db1794bd8f9f74450ccbb45571ffaa2815da2", size = 1479337, upload-time = "2018-04-16T04:16:25.78Z" }
 
 [[package]]
 name = "ruff"
