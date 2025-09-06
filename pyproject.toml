@@ -5,6 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "asyncio>=4.0.0",
     "fastapi>=0.116.1",
+    "quickfix>=1.15.1",
     "ruff>=0.12.11",
+    "websockets>=15.0.1",
 ]
