@@ -1,0 +1,74 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Packaging / build
+build/
+dist/
+ wheels/
+*.egg-info/
+.eggs/
+MANIFEST
+
+# Dependency management (uv)
+# Keep uv.lock tracked for reproducible builds
+.venv/
+venv/
+env/
+
+# Tests / coverage
+.pytest_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+.tox/
+.nox/
+.benchmarks/
+
+# Type checkers / linters
+.mypy_cache/
+.pytype/
+.ruff_cache/
+.pyre/
+
+# IDE / editor
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Env & direnv
+.env
+.env.*
+.envrc
+.direnv/
+
+# Docker / Compose
+docker-compose.override.yml
+*.local.yml
+*.override.yml
+
+# Helm charts (built dependencies and packaged charts)
+charts/*/charts/*.tgz
+helm/*/charts/*.tgz
+**/charts/*.tgz
+
+# Kubernetes local artifacts
+*.kubeconfig
+
+# Logs & temp files
+*.log
+tmp/
+logs/
+
+# Tooling outputs
+coverage.xml
+profile.prof
+pip-log.txt
+pip-delete-this-directory.txt
