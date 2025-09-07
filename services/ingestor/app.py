@@ -7,18 +7,13 @@ Connects to Coinbase WebSocket feed, normalizes data, and publishes to message b
 import argparse
 import asyncio
 import json
-import os
+import websockets
 from datetime import datetime
 from typing import Dict, List
-
-import websockets
-
-from ..common.models import Tick, TickFields, TradeData, create_tick
-from ..common.stream import Broker, BrokerConfig, create_broker
-from ..common.util import get_shard_subject
+from ..common import Tick, TickFields, TradeData, create_tick, NATSStreamManager, NATSConfig, shard_product
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Coinbase WebSocket Ingester")
     parser.add_argument('--products', type=str, required=True, 
                        help='Comma-separated products (e.g., BTC-USD,ETH-USD)')
@@ -26,13 +21,11 @@ def parse_args():
                        help='Comma-separated channels (e.g., ticker,heartbeat)')
     parser.add_argument('--ws-uri', type=str, default='wss://ws-feed.exchange.coinbase.com',
                        help='WebSocket URI')
-    parser.add_argument('--broker-kind', type=str, default='nats', choices=['nats', 'redis'],
-                       help='Message broker type')
-    parser.add_argument('--broker-urls', type=str, 
-                       help='Broker URLs (e.g., nats://localhost:4222)')
+    parser.add_argument('--nats-urls', type=str, default='nats://localhost:4222',
+                       help='NATS JetStream URLs')
     parser.add_argument('--num-shards', type=int, default=4,
                        help='Number of shards for message distribution')
-    parser.add_argument('--stream-name', type=str, default='market.ticks',
+    parser.add_argument('--stream-name', type=str, default='market_ticks',
                        help='Stream name for message broker')
     return parser.parse_args()
 
@@ -43,21 +36,29 @@ def transform_coinbase_ticker(coinbase_data: dict) -> Tick:
     event_time = datetime.fromisoformat(coinbase_data['time'].replace('Z', '+00:00'))
     ts_event = int(event_time.timestamp() * 1_000_000_000)
     
-    # Create tick fields
-    fields = TickFields(
-        last_trade=TradeData(
+    # Create tick fields with safe field access
+    fields = TickFields()
+    
+    # Last trade data (required for ticker)
+    if 'price' in coinbase_data and 'last_size' in coinbase_data:
+        fields.last_trade = TradeData(
             px=float(coinbase_data['price']), 
             qty=float(coinbase_data['last_size'])
-        ),
-        best_bid=TradeData(
+        )
+    
+    # Best bid data (optional)
+    if 'best_bid' in coinbase_data and 'best_bid_size' in coinbase_data:
+        fields.best_bid = TradeData(
             px=float(coinbase_data['best_bid']), 
             qty=float(coinbase_data['best_bid_size'])
-        ),
-        best_ask=TradeData(
+        )
+    
+    # Best ask data (optional)
+    if 'best_ask' in coinbase_data and 'best_ask_size' in coinbase_data:
+        fields.best_ask = TradeData(
             px=float(coinbase_data['best_ask']), 
             qty=float(coinbase_data['best_ask_size'])
         )
-    )
     
     return create_tick(
         product=coinbase_data['product_id'],
@@ -70,20 +71,19 @@ def transform_coinbase_ticker(coinbase_data: dict) -> Tick:
 class CoinbaseIngester:
     """Coinbase WebSocket ingester with message broker integration"""
     
-    def __init__(self, args):
+    def __init__(self, args: argparse.Namespace) -> None:
         self.args = args
-        self.products = [p.strip().upper() for p in args.products.split(',')]
-        self.channels = [c.strip() for c in args.channels.split(',')]
+        self.products = [product.strip().upper() for product in args.products.split(',')]
+        self.channels = [channel.strip() for channel in args.channels.split(',')]
         self.num_shards = args.num_shards
         
-        # Message broker setup
-        broker_config = BrokerConfig(
-            kind=args.broker_kind,
-            urls=args.broker_urls,
+        # NATS JetStream setup
+        nats_config = NATSConfig(
+            urls=args.nats_urls,
             stream_name=args.stream_name,
             retention_minutes=30
         )
-        self.broker = create_broker(broker_config)
+        self.broker = NATSStreamManager(nats_config)
         
         # Statistics
         self.stats = {
@@ -93,12 +93,12 @@ class CoinbaseIngester:
             'products': {product: 0 for product in self.products}
         }
     
-    async def start(self):
+    async def start(self) -> None:
         """Start the ingester"""
         print(f"🚀 Starting Coinbase Ingester")
         print(f"📡 Products: {', '.join(self.products)}")
         print(f"📺 Channels: {', '.join(self.channels)}")
-        print(f"🔌 Broker: {self.args.broker_kind}")
+        print(f"🔌 NATS: {self.args.nats_urls}")
         print(f"📊 Shards: {self.num_shards}")
         
         # Connect to message broker
@@ -108,7 +108,7 @@ class CoinbaseIngester:
         # Start WebSocket connection
         await self._websocket_loop()
     
-    async def _websocket_loop(self):
+    async def _websocket_loop(self) -> None:
         """Main WebSocket processing loop"""
         subscribe_message = json.dumps({
             'type': 'subscribe',
@@ -118,22 +118,38 @@ class CoinbaseIngester:
         
         print(f"🔌 Connecting to: {self.args.ws_uri}")
         
-        async with websockets.connect(self.args.ws_uri) as websocket:
-            print("✅ WebSocket connected!")
-            
-            # Send subscription
-            await websocket.send(subscribe_message)
-            print("📤 Subscription sent")
-            
-            # Process messages
-            async for message in websocket:
+        try:
+            async with websockets.connect(self.args.ws_uri) as websocket:
+                print("✅ WebSocket connected!")
+                
+                # Send subscription
+                await websocket.send(subscribe_message)
+                print("📤 Subscription sent")
+                
+                # Process messages
                 try:
-                    await self._process_message(message)
+                    async for message in websocket:
+                        try:
+                            await self._process_message(message)
+                        except Exception as e:
+                            print(f"❌ Error processing message: {e}")
+                            self.stats['errors'] += 1
+                except asyncio.CancelledError:
+                    print("🛑 WebSocket loop cancelled")
+                    raise
+                except websockets.exceptions.ConnectionClosed:
+                    print("🔌 WebSocket connection closed")
                 except Exception as e:
-                    print(f"❌ Error processing message: {e}")
+                    print(f"❌ WebSocket error: {e}")
                     self.stats['errors'] += 1
+        except asyncio.CancelledError:
+            print("🛑 WebSocket connection cancelled")
+            raise
+        except Exception as e:
+            print(f"❌ Failed to connect to WebSocket: {e}")
+            self.stats['errors'] += 1
     
-    async def _process_message(self, message: str):
+    async def _process_message(self, message: str) -> None:
         """Process a WebSocket message"""
         try:
             data = json.loads(message)
@@ -158,43 +174,53 @@ class CoinbaseIngester:
             print(f"❌ Error processing message: {e}")
             self.stats['errors'] += 1
     
-    async def _process_ticker(self, data: dict):
+    async def _process_ticker(self, data: dict) -> None:
         """Process a ticker message"""
         try:
             # Transform to canonical format
             tick = transform_coinbase_ticker(data)
             
             # Determine shard
-            shard = hash(tick.product) % self.num_shards
+            shard = shard_product(tick.product, self.num_shards)
             
-            # Publish to broker
-            await self.broker.publish_tick(tick, shard)
-            
-            # Update stats
-            self.stats['messages_published'] += 1
-            self.stats['products'][tick.product] += 1
-            
-            # Print tick info
-            print(f"📈 {tick.product}: ${tick.fields.last_trade.px:,.2f} "
-                  f"(bid: ${tick.fields.best_bid.px:,.2f}, ask: ${tick.fields.best_ask.px:,.2f}) "
-                  f"shard: {shard}")
-            
-            # Print stats every 100 messages
-            if self.stats['messages_published'] % 100 == 0:
-                print(f"\n📊 Stats: {self.stats}\n")
+            # Publish to broker with error handling
+            try:
+                await self.broker.publish_tick(tick, shard)
+                
+                # Update stats
+                self.stats['messages_published'] += 1
+                self.stats['products'][tick.product] += 1
+                
+                # Print tick info
+                last_trade_price = tick.fields.last_trade.px if tick.fields.last_trade else 0.0
+                bid_price = tick.fields.best_bid.px if tick.fields.best_bid else 0.0
+                ask_price = tick.fields.best_ask.px if tick.fields.best_ask else 0.0
+                
+                print(f"📈 {tick.product}: ${last_trade_price:,.2f} "
+                      f"(bid: ${bid_price:,.2f}, ask: ${ask_price:,.2f}) "
+                      f"shard: {shard}")
+                
+                # Print stats every 100 messages
+                if self.stats['messages_published'] % 100 == 0:
+                    print(f"\n📊 Stats: {self.stats}\n")
+                    
+            except Exception as publish_error:
+                print(f"❌ Error publishing tick to NATS: {publish_error}")
+                self.stats['errors'] += 1
+                # Don't re-raise - continue processing other messages
                 
         except Exception as e:
             print(f"❌ Error processing ticker: {e}")
             self.stats['errors'] += 1
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the ingester"""
         print("🛑 Stopping ingester...")
         await self.broker.disconnect()
         print("✅ Ingester stopped")
 
 
-async def main():
+async def main() -> None:
     args = parse_args()
     
     ingester = CoinbaseIngester(args)

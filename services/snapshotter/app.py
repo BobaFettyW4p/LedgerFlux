@@ -1,26 +1,30 @@
-"""
-Snapshotter Service
+'''
+This is the snapshotter service.
 
-Maintains per-product state, writes latest data to DynamoDB, and batches snapshots to S3.
-"""
+It consumes normalized market data from NATS JetStream, maintains per-product state,
+and writes latest data to DynamoDB while batching snapshots to S3 for persistence.
+
+Required fields:
+--nats-urls: NATS JetStream URLs
+--input-stream: Input stream name to consume from
+--num-shards: Number of input shards
+--shard-id: Shard ID this snapshotter instance handles (0 to num-shards-1)
+--snapshot-period-ms: Snapshot period in milliseconds
+--ddb-table: DynamoDB table name for latest data
+--s3-bucket: S3 bucket for batched snapshots
+'''
 
 import argparse
 import asyncio
-import json
-import os
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
-
-from ..common.models import Tick, Snapshot, create_snapshot
-from ..common.stream import Broker, BrokerConfig, create_broker
+from datetime import datetime
+from typing import Dict, Any
+from ..common import Tick, create_snapshot, NATSStreamManager, NATSConfig
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Market Data Snapshotter")
-    parser.add_argument('--broker-kind', type=str, default='nats', choices=['nats', 'redis'],
-                       help='Message broker type')
-    parser.add_argument('--broker-urls', type=str,
-                       help='Broker URLs (e.g., nats://localhost:4222)')
+    parser.add_argument('--nats-urls', type=str, default='nats://localhost:4222',
+                       help='NATS JetStream URLs')
     parser.add_argument('--input-stream', type=str, default='market.normalized',
                        help='Input stream name')
     parser.add_argument('--num-shards', type=int, default=4,
@@ -45,14 +49,13 @@ class Snapshotter:
         self.num_shards = args.num_shards
         self.snapshot_period_ms = args.snapshot_period_ms
         
-        # Message broker setup
-        broker_config = BrokerConfig(
-            kind=args.broker_kind,
-            urls=args.broker_urls,
+        # NATS JetStream setup
+        nats_config = NATSConfig(
+            urls=args.nats_urls,
             stream_name=args.input_stream,
             retention_minutes=30
         )
-        self.broker = create_broker(broker_config)
+        self.broker = NATSStreamManager(nats_config)
         
         # State management
         self.product_states: Dict[str, Dict[str, Any]] = {}
@@ -246,7 +249,7 @@ class Snapshotter:
         print("✅ Snapshotter stopped")
 
 
-async def main():
+async def main() -> None:
     args = parse_args()
     
     snapshotter = Snapshotter(args)
