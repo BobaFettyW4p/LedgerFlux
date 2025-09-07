@@ -15,21 +15,17 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
 import uvicorn
 
-from ..common.models import (
+from ..common import (
     SubscribeRequest, UnsubscribeRequest, PingRequest,
     SnapshotMessage, IncrMessage, RateLimitMessage, PongMessage, ErrorMessage,
-    Tick, Snapshot
+    Tick, Snapshot, NATSStreamManager, NATSConfig, validate_product_list
 )
-from ..common.stream import Broker, BrokerConfig, create_broker
-from ..common.util import validate_product_list
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Market Data Gateway")
-    parser.add_argument('--broker-kind', type=str, default='nats', choices=['nats', 'redis'],
-                       help='Message broker type')
-    parser.add_argument('--broker-urls', type=str,
-                       help='Broker URLs (e.g., nats://localhost:4222)')
+    parser.add_argument('--nats-urls', type=str, default='nats://localhost:4222',
+                       help='NATS JetStream URLs')
     parser.add_argument('--input-stream', type=str, default='market.normalized',
                        help='Input stream name')
     parser.add_argument('--num-shards', type=int, default=4,
@@ -108,14 +104,13 @@ class Gateway:
         self.app = FastAPI(title="Market Data Gateway")
         self.clients: Dict[WebSocket, ClientConnection] = {}
         
-        # Message broker setup
-        broker_config = BrokerConfig(
-            kind=args.broker_kind,
-            urls=args.broker_urls,
+        # NATS JetStream setup
+        nats_config = NATSConfig(
+            urls=args.nats_urls,
             stream_name=args.input_stream,
             retention_minutes=30
         )
-        self.broker = create_broker(broker_config)
+        self.broker = NATSStreamManager(nats_config)
         
         # Statistics
         self.stats = {
@@ -308,7 +303,7 @@ class Gateway:
         print("✅ Gateway stopped")
 
 
-async def main():
+async def main() -> None:
     args = parse_args()
     
     gateway = Gateway(args)

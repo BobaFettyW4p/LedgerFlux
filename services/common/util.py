@@ -23,7 +23,21 @@ def stable_hash(product: str, num_shards: int) -> int:
     return hash_int % num_shards
 
 
-def get_shard_subject(product: str, num_shards: int, base_subject: str = "market.ticks") -> str:
+def shard_product(product: str, num_shards: int) -> int:
+    """
+    Alias for stable_hash - determines the shard ID for a given product.
+    
+    Args:
+        product: Product symbol (e.g., "BTC-USD")
+        num_shards: Number of shards
+        
+    Returns:
+        Shard number (0 to num_shards-1)
+    """
+    return stable_hash(product, num_shards)
+
+
+def get_shard_subject(product: str, num_shards: int, base_subject: str = "market_ticks") -> str:
     """
     Get the JetStream subject for a product's shard.
     
@@ -33,7 +47,7 @@ def get_shard_subject(product: str, num_shards: int, base_subject: str = "market
         base_subject: Base subject name
         
     Returns:
-        Subject name (e.g., "market.ticks.0")
+        Subject name (e.g., "market_ticks.0")
     """
     shard = stable_hash(product, num_shards)
     return f"{base_subject}.{shard}"

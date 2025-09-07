@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: normalizer
+  namespace: ledgerflux
+  labels:
+    app: normalizer
+    component: ledgerflux
+spec:
+  replicas: 4  # One per shard
+  selector:
+    matchLabels:
+      app: normalizer
+  template:
+    metadata:
+      labels:
+        app: normalizer
+        component: ledgerflux
+    spec:
+      containers:
+      - name: normalizer
+        image: ledgerflux-normalizer:latest
+        imagePullPolicy: Never  # For local development
+        args:
+        - --nats-urls
+        - "nats://nats:4222"
+        - --input-stream
+        - "market.ticks"
+        - --output-stream
+        - "market.normalized"
+        - --num-shards
+        - "4"
+        - --shard-id
+        - "$(SHARD_ID)"
+        env:
+        - name: SHARD_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['pod-index']
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: ledgerflux-config
+              key: LOG_LEVEL
+        - name: NATS_URLS
+          valueFrom:
+            configMapKeyRef:
+              name: ledgerflux-config
+              key: NATS_URLS
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import requests; requests.get('http://localhost:8081/health')"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import requests; requests.get('http://localhost:8081/ready')"
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: normalizer
+  namespace: ledgerflux
+  labels:
+    app: normalizer
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8081
+    targetPort: 8081
+    name: metrics
+  selector:
+    app: normalizer
