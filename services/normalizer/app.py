@@ -1,26 +1,29 @@
-"""
-Normalizer Service
+'''
+This is the normalizer service.
 
-Validates incoming ticks, ensures data quality, and routes to appropriate shards.
-"""
+It consumes raw market data from NATS JetStream, validates and normalizes the data,
+and routes it to appropriate shards for downstream processing.
+
+Required fields:
+--nats-urls: NATS JetStream URLs
+--input-stream: Input stream name to consume from
+--output-stream: Output stream name to publish to
+--num-shards: Number of output shards for message distribution
+--shard-id: Shard ID this normalizer instance handles (0 to num-shards-1)
+'''
 
 import argparse
 import asyncio
-import os
-from typing import Dict, Set
+from typing import Dict
 
-from ..common.models import Tick, Snapshot
-from ..common.stream import Broker, BrokerConfig, create_broker
-from ..common.util import stable_hash
+from ..common import Tick, Snapshot, NATSStreamManager, NATSConfig
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Market Data Normalizer")
-    parser.add_argument('--broker-kind', type=str, default='nats', choices=['nats', 'redis'],
-                       help='Message broker type')
-    parser.add_argument('--broker-urls', type=str,
-                       help='Broker URLs (e.g., nats://localhost:4222)')
-    parser.add_argument('--input-stream', type=str, default='market.ticks',
+    parser.add_argument('--nats-urls', type=str, default='nats://localhost:4222',
+                       help='NATS JetStream URLs')
+    parser.add_argument('--input-stream', type=str, default='market_ticks',
                        help='Input stream name')
     parser.add_argument('--output-stream', type=str, default='market.normalized',
                        help='Output stream name')
@@ -39,14 +42,13 @@ class Normalizer:
         self.shard_id = args.shard_id
         self.num_shards = args.num_shards
         
-        # Message broker setup
-        broker_config = BrokerConfig(
-            kind=args.broker_kind,
-            urls=args.broker_urls,
+        # NATS JetStream setup
+        nats_config = NATSConfig(
+            urls=args.nats_urls,
             stream_name=args.output_stream,
             retention_minutes=30
         )
-        self.broker = create_broker(broker_config)
+        self.broker = NATSStreamManager(nats_config)
         
         # Statistics
         self.stats = {
@@ -65,7 +67,7 @@ class Normalizer:
         print(f"🚀 Starting Normalizer (Shard {self.shard_id})")
         print(f"📊 Input: {self.args.input_stream}.{self.shard_id}")
         print(f"📤 Output: {self.args.output_stream}")
-        print(f"🔌 Broker: {self.args.broker_kind}")
+        print(f"🔌 NATS: {self.args.nats_urls}")
         
         # Connect to message broker
         await self.broker.connect()
@@ -167,7 +169,7 @@ class Normalizer:
         print("✅ Normalizer stopped")
 
 
-async def main():
+async def main() -> None:
     args = parse_args()
     
     normalizer = Normalizer(args)

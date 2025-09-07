@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ledgerflux-config
+  namespace: ledgerflux
+data:
+  # NATS JetStream configuration
+  NATS_URLS: "nats://nats:4222"
+  
+  # Stream configuration
+  JS_STREAM_NAME: "market.ticks"
+  JS_RETENTION_MINUTES: "30"
+  
+  # Gateway configuration
+  WS_MAX_MSGS_PER_SEC: "100"
+  WS_BURST: "200"
+  BACKFILL_MAX_MINUTES: "60"
+  
+  # Snapshotter configuration
+  SNAPSHOT_PERIOD_MS: "60000"
+  S3_BUCKET: "market-data-snapshots"
+  DDB_TABLE: "market-data-latest"
+  
+  # Ingester configuration
+  RESYNC_MAX_QUEUE_MS: "2000"
+  GAP_THRESHOLD: "500"
+  
+  # Logging
+  LOG_LEVEL: "INFO"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ledgerflux-secrets
+  namespace: ledgerflux
+type: Opaque
+data:
+  # AWS credentials (for DynamoDB and S3)
+  AWS_ACCESS_KEY_ID: bWluaW9hZG1pbg==  # minioadmin
+  AWS_SECRET_ACCESS_KEY: bWluaW9hZG1pbg==  # minioadmin
+  AWS_DEFAULT_REGION: dXMtZWFzdC0x  # us-east-1
