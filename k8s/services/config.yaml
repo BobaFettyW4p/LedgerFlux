@@ -8,7 +8,7 @@ data:
   NATS_URLS: "nats://nats:4222"
   
   # Stream configuration
-  JS_STREAM_NAME: "market.ticks"
+  JS_STREAM_NAME: "market_ticks"
   JS_RETENTION_MINUTES: "30"
   
   # Gateway configuration

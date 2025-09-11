@@ -10,7 +10,8 @@ import json
 import websockets
 from datetime import datetime
 from typing import Dict, List
-from ..common import Tick, TickFields, TradeData, create_tick, NATSStreamManager, NATSConfig, shard_product
+from ..common import Tick, TickFields, TradeData, create_tick, NATSStreamManager, NATSConfig
+from ..common.util import shard_product
 
 
 def parse_args() -> argparse.Namespace:
@@ -81,7 +82,8 @@ class CoinbaseIngester:
         nats_config = NATSConfig(
             urls=args.nats_urls,
             stream_name=args.stream_name,
-            retention_minutes=30
+            retention_minutes=30,
+            delete_existing=False
         )
         self.broker = NATSStreamManager(nats_config)
         

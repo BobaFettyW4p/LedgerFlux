@@ -25,7 +25,7 @@ spec:
         - --nats-urls
         - "nats://nats:4222"
         - --input-stream
-        - "market.normalized"
+        - "market_normalized"
         - --num-shards
         - "4"
         - --port
