@@ -10,6 +10,7 @@ import json
 import time
 from datetime import datetime
 from typing import Dict, Set, Optional, Any
+import os
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
@@ -18,15 +19,16 @@ import uvicorn
 from ..common import (
     SubscribeRequest, UnsubscribeRequest, PingRequest,
     SnapshotMessage, IncrMessage, RateLimitMessage, PongMessage, ErrorMessage,
-    Tick, Snapshot, NATSStreamManager, NATSConfig, validate_product_list
+    Tick, Snapshot, NATSStreamManager, NATSConfig
 )
+from ..common.util import validate_product_list
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Market Data Gateway")
     parser.add_argument('--nats-urls', type=str, default='nats://localhost:4222',
                        help='NATS JetStream URLs')
-    parser.add_argument('--input-stream', type=str, default='market.normalized',
+    parser.add_argument('--input-stream', type=str, default='market_normalized',
                        help='Input stream name')
     parser.add_argument('--num-shards', type=int, default=4,
                        help='Number of input shards')
@@ -103,12 +105,14 @@ class Gateway:
         self.args = args
         self.app = FastAPI(title="Market Data Gateway")
         self.clients: Dict[WebSocket, ClientConnection] = {}
+        self.latest_ticks: Dict[str, Tick] = {}
         
         # NATS JetStream setup
         nats_config = NATSConfig(
             urls=args.nats_urls,
             stream_name=args.input_stream,
-            retention_minutes=30
+            retention_minutes=30,
+            delete_existing=False  # Don't delete the existing stream
         )
         self.broker = NATSStreamManager(nats_config)
         
@@ -136,14 +140,39 @@ class Gateway:
                     <p>WebSocket endpoint: <code>ws://localhost:{}/ws</code></p>
                     <h2>Protocol</h2>
                     <h3>Subscribe</h3>
-                    <pre>{"op": "subscribe", "products": ["BTC-USD"], "want_snapshot": true}</pre>
+                    <pre>{{"op": "subscribe", "products": ["BTC-USD"], "want_snapshot": true}}</pre>
                     <h3>Unsubscribe</h3>
-                    <pre>{"op": "unsubscribe", "products": ["BTC-USD"]}</pre>
+                    <pre>{{"op": "unsubscribe", "products": ["BTC-USD"]}}</pre>
                     <h3>Ping</h3>
-                    <pre>{"op": "ping", "t": 1234567890}</pre>
+                    <pre>{{"op": "ping", "t": 1234567890}}</pre>
                 </body>
             </html>
             """.format(self.args.port))
+        
+        @self.app.get("/health")
+        async def health():
+            return {"status": "healthy", "clients": len(self.clients)}
+        
+        @self.app.get("/ready")
+        async def ready():
+            # Check if broker is connected
+            if self.broker and self.broker.nc:
+                return {"status": "ready", "broker": "connected"}
+            return {"status": "not_ready", "broker": "disconnected"}
+        
+        @self.app.get("/snapshot")
+        async def snapshot(products: Optional[str] = None):
+            # Return latest known ticks per requested product(s)
+            if products:
+                requested = [p.strip() for p in products.split(",") if p.strip()]
+            else:
+                requested = list(self.latest_ticks.keys())
+            data = {}
+            for product in requested:
+                tick = self.latest_ticks.get(product)
+                if tick is not None:
+                    data[product] = tick.model_dump()
+            return {"data": data}
         
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
@@ -154,7 +183,7 @@ class Gateway:
         print(f"🚀 Starting Market Data Gateway")
         print(f"🌐 WebSocket: ws://localhost:{self.args.port}/ws")
         print(f"📊 Input: {self.args.input_stream}")
-        print(f"🔌 Broker: {self.args.broker_kind}")
+        print(f"🔌 Broker: NATS")
         print(f"⚡ Rate Limit: {self.args.max_msgs_per_sec} msg/sec")
         
         # Connect to message broker
@@ -272,15 +301,30 @@ class Gateway:
         print("🔄 Starting message processing...")
         
         # Subscribe to all shards
+        instance_id = os.environ.get("HOSTNAME", "gateway")
         for shard_id in range(self.args.num_shards):
+            print(f"🔗 Subscribing to shard {shard_id}...")
             async def message_handler(tick: Tick):
+                print(f"📨 Received message from shard {shard_id}: {tick.product} - {tick.type}")
+                # Update in-memory latest tick cache
+                self.latest_ticks[tick.product] = tick
                 await self._broadcast_tick(tick)
             
-            await self.broker.subscribe_to_shard(shard_id, message_handler)
+            try:
+                consumer = f"gateway-{instance_id}-{shard_id}"
+                await self.broker.subscribe_to_shard(shard_id, message_handler, consumer_name=consumer)
+                print(f"✅ Successfully subscribed to shard {shard_id}")
+            except Exception as e:
+                print(f"❌ Failed to subscribe to shard {shard_id}: {e}")
+                import traceback
+                traceback.print_exc()
     
     async def _broadcast_tick(self, tick: Tick):
         """Broadcast a tick to subscribed clients"""
+        print(f"📡 Broadcasting tick: {tick.product} - {tick.type} to {len(self.clients)} clients")
+        
         if not self.clients:
+            print("❌ No clients connected")
             return
         
         # Create increment message
@@ -288,13 +332,18 @@ class Gateway:
         message = incr_msg.model_dump()
         
         # Send to all clients subscribed to this product
+        sent_count = 0
         for client in self.clients.values():
             if tick.product in client.subscribed_products:
+                print(f"📤 Sending to client subscribed to {tick.product}")
                 success = await client.send_message(message)
                 if success:
                     self.stats['messages_sent'] += 1
+                    sent_count += 1
                 else:
                     self.stats['rate_limits'] += 1
+        
+        print(f"✅ Broadcasted to {sent_count} clients")
     
     async def stop(self):
         """Stop the gateway"""

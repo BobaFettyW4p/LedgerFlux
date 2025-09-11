@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Market Data Snapshotter")
     parser.add_argument('--nats-urls', type=str, default='nats://localhost:4222',
                        help='NATS JetStream URLs')
-    parser.add_argument('--input-stream', type=str, default='market.normalized',
+    parser.add_argument('--input-stream', type=str, default='market_normalized',
                        help='Input stream name')
     parser.add_argument('--num-shards', type=int, default=4,
                        help='Number of input shards')

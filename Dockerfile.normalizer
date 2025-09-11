@@ -1,0 +1,9 @@
+# Normalizer service image
+FROM ledgerflux-common:latest
+
+# Copy normalizer service
+COPY services/normalizer/ ./services/normalizer/
+
+# Run normalizer (shard ID will be extracted from pod name)
+ENTRYPOINT ["python3", "-m", "services.normalizer.app"]
+CMD ["--nats-urls", "nats://nats:4222", "--input-stream", "market_ticks", "--output-stream", "market_normalized", "--num-shards", "4"]

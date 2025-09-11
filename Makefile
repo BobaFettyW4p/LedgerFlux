@@ -77,6 +77,34 @@ run-gateway:
 test-client:
 	uv run python test_client.py
 
+# Kubernetes testing
+k8s-setup:
+	@echo "🚀 Setting up Kubernetes test environment..."
+	./scripts/test-k8s.sh setup
+
+k8s-test:
+	@echo "🧪 Running Kubernetes integration tests..."
+	./scripts/test-k8s.sh test
+
+k8s-load:
+	@echo "🚀 Running Kubernetes load tests..."
+	./scripts/test-k8s.sh load
+
+k8s-metrics:
+	@echo "📊 Checking Kubernetes metrics..."
+	./scripts/test-k8s.sh metrics
+
+k8s-status:
+	@echo "📋 Showing Kubernetes system status..."
+	./scripts/test-k8s.sh status
+
+k8s-cleanup:
+	@echo "🧹 Cleaning up Kubernetes test environment..."
+	./scripts/test-k8s.sh cleanup
+
+k8s-all: k8s-setup k8s-test k8s-metrics
+	@echo "✅ Complete Kubernetes test suite completed!"
+
 # Development helpers
 dev-setup: install compose-up
 	@echo "🚀 Development environment ready!"
@@ -85,3 +113,10 @@ dev-setup: install compose-up
 	@echo "Run 'make run-snapshotter' in another terminal"
 	@echo "Run 'make run-gateway' in another terminal"
 	@echo "Run 'make test-client' to test the system"
+
+# Test client with different options
+test-client-basic:
+	uv run python test_client.py --products BTC-USD,ETH-USD --duration 30
+
+test-client-load:
+	uv run python test_client.py --products BTC-USD,ETH-USD --load-test --num-clients 10 --duration 60
