@@ -13,9 +13,6 @@ RUN apt-get update && apt-get install -y \
 COPY pyproject.toml uv.lock ./
 RUN pip install uv && uv sync --frozen
 
-# Install additional dependencies that might be missing
-RUN pip install fastapi uvicorn websockets nats-py boto3
-
 # Copy common modules
 COPY services/common/ ./services/common/
 
@@ -23,4 +20,4 @@ COPY services/common/ ./services/common/
 ENV PYTHONPATH=/app
 
 # Default command
-CMD ["python", "-m", "services.common"]
+CMD ["uv", "run", "python", "-m", "services.common"]
