@@ -1,5 +1,9 @@
 # LedgerFlux Market Data Fan-Out System
 
+# Defaults
+NAMESPACE ?= ledgerflux
+K8S_DIR ?= k8s
+
 .PHONY: help install lint typecheck test compose-up compose-down clean
 
 # Default target
@@ -22,6 +26,12 @@ help:
 	@echo "  run-snapshotter  - Run a snapshotter instance"
 	@echo "  run-gateway      - Run the gateway service"
 	@echo "  test-client      - Run the test client"
+	@echo ""
+	@echo "Docker images:"
+	@echo "  docker-build-all - Build all service images (uses build-images.sh)"
+	@echo ""
+	@echo "Kubernetes:"
+	@echo "  deploy-local    - Build images and apply k8s manifests"
 	@echo ""
 
 # Install dependencies
@@ -120,3 +130,20 @@ test-client-basic:
 
 test-client-load:
 	uv run python test_client.py --products BTC-USD,ETH-USD --load-test --num-clients 10 --duration 60
+
+# Docker images
+.PHONY: docker-build-all
+docker-build-all:
+	./build-images.sh
+
+.PHONY: deploy-local
+deploy-local:
+	@echo "🚢 Building images and deploying to Kubernetes namespace '$(NAMESPACE)'..."
+	VERSION=$(VERSION) REGISTRY=$(REGISTRY) PUSH=$(PUSH) ./build-images.sh
+	kubectl apply -f $(K8S_DIR)/namespace.yaml
+	kubectl -n $(NAMESPACE) apply -f $(K8S_DIR)/infrastructure/
+	# Apply config first to ensure env/urls exist
+	kubectl -n $(NAMESPACE) apply -f $(K8S_DIR)/services/config.yaml
+	# Apply all services (idempotent)
+	kubectl -n $(NAMESPACE) apply -f $(K8S_DIR)/services/
+	@echo "✅ Deploy complete. Check status with: kubectl -n $(NAMESPACE) get pods"
