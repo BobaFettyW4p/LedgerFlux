@@ -1,0 +1,47 @@
+version: 2
+
+updates:
+  # Keep GitHub Actions up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps(actions)"
+    groups:
+      actions-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Bump base images in Dockerfiles (e.g., python:3.12-slim)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "deps(docker)"
+    allow:
+      - dependency-type: "direct"
+
+  # Python: optional. Dependabot can open PRs for pyproject deps,
+  # but it won’t update uv.lock. Enable only if you plan to regenerate
+  # uv.lock in CI on Dependabot PRs.
+  # - package-ecosystem: "pip"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #   commit-message:
+  #     prefix: "deps(python)"
+  #   ignore:
+  #     # Example: pin major updates to manual PRs
+  #     - dependency-name: "*"
+  #       update-types: ["version-update:semver-major"]
+
+# If you use private registries for base images, configure them here and
+# add matching credentials in repo settings → Secrets and variables → Dependabot.
+# registries:
+#   ghcr:
+#     type: docker-registry
+#     url: ghcr.io
+#     username: ${{secrets.DEPENDABOT_GHCR_USERNAME}}
+#     password: ${{secrets.DEPENDABOT_GHCR_TOKEN}}
+
