@@ -1,5 +1,6 @@
 # Ingestor service image
-FROM ledgerflux-common:latest
+ARG BASE_IMAGE=ledgerflux-common:latest
+FROM ${BASE_IMAGE}
 
 # Copy ingestor service
 COPY services/ingestor/ ./services/ingestor/
@@ -12,5 +13,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Run ingestor
-ENTRYPOINT ["python", "-m", "services.ingestor.app"]
+ENTRYPOINT ["uv", "run", "python", "-m", "services.ingestor.app"]
 CMD ["--products", "BTC-USD,ETH-USD", "--nats-urls", "nats://nats:4222"]

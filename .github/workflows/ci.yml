@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ "**" ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pipx and uv
+        run: |
+          python -m pip install --upgrade pip pipx
+          python -m pipx ensurepath
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          pipx install uv
+
+      - name: Restore uv cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: uv-${{ runner.os }}-${{ steps.python-setup.outputs.python-version || '3.12' }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
+
+      - name: Regenerate uv.lock on Dependabot PRs
+        if: ${{ github.actor == 'dependabot[bot]' }}
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+        run: |
+          uv lock --upgrade
+          if ! git diff --quiet -- uv.lock; then
+            git add uv.lock
+            git commit -m "deps(python): update uv.lock"
+            git push
+          else
+            echo "No uv.lock changes to commit."
+          fi
+
+      - name: Install project dependencies
+        run: uv sync --frozen
+
+      - name: Ruff lint
+        run: |
+          uvx ruff check .
+          uvx ruff format --check .
+
+      - name: Type check (mypy)
+        run: uvx mypy --strict services/
+
+      - name: Run tests (pytest if present)
+        shell: bash
+        run: |
+          if [[ -n "${{ hashFiles('**/test*.py') }}" ]]; then
+            uvx pytest -q
+          else
+            echo "No tests detected; skipping pytest."
+          fi
+
