@@ -1,5 +1,6 @@
 # Gateway service image
-FROM ledgerflux-common:latest
+ARG BASE_IMAGE=ledgerflux-common:latest
+FROM ${BASE_IMAGE}
 
 # Copy gateway service
 COPY services/gateway/ ./services/gateway/

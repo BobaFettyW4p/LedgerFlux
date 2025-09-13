@@ -1,5 +1,6 @@
 # Ingestor service image
-FROM ledgerflux-common:latest
+ARG BASE_IMAGE=ledgerflux-common:latest
+FROM ${BASE_IMAGE}
 
 # Copy ingestor service
 COPY services/ingestor/ ./services/ingestor/
