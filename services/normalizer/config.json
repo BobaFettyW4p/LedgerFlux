@@ -1,0 +1,6 @@
+{
+  "input_stream": "market_ticks",
+  "output_stream": "market_normalized",
+  "num_shards": 4,
+  "shard_id": 0
+}

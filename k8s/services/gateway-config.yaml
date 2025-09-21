@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ledgerflux-gateway-config
+  namespace: ledgerflux
+data:
+  config.json: |
+    {
+      "input_stream": "market_normalized",
+      "num_shards": 4,
+      "port": 8000,
+      "max_msgs_per_sec": 100,
+      "burst": 200
+    }
+

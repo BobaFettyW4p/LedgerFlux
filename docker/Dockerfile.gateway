@@ -14,4 +14,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Run gateway
 ENTRYPOINT ["uv", "run","python", "-m", "services.gateway.app"]
-CMD ["--nats-urls", "nats://nats:4222", "--port", "8000"]

@@ -32,6 +32,7 @@ help:
 	@echo ""
 	@echo "Kubernetes:"
 	@echo "  deploy-local    - Build images and apply k8s manifests"
+	@echo "  undeploy-local  - Delete namespace and all resources"
 	@echo ""
 
 # Install dependencies
@@ -53,7 +54,7 @@ test:
 
 # Infrastructure
 compose-up:
-	docker-compose up -d
+	docker-compose -f docker/docker-compose.yaml up -d
 	@echo "✅ Infrastructure started!"
 	@echo "🌐 NATS: http://localhost:8222"
 	@echo "🔴 Redis: localhost:6379"
@@ -63,7 +64,7 @@ compose-up:
 	@echo "📈 Grafana: http://localhost:3000 (admin/admin)"
 
 compose-down:
-	docker-compose down
+	docker-compose -f docker/docker-compose.yaml down
 
 # Clean up
 clean:
@@ -134,12 +135,12 @@ test-client-load:
 # Docker images
 .PHONY: docker-build-all
 docker-build-all:
-	./build-images.sh
+	./docker/build-images.sh
 
 .PHONY: deploy-local
 deploy-local:
 	@echo "🚢 Building images and deploying to Kubernetes namespace '$(NAMESPACE)'..."
-	VERSION=$(VERSION) REGISTRY=$(REGISTRY) PUSH=$(PUSH) ./build-images.sh
+	VERSION=$(VERSION) REGISTRY=$(REGISTRY) PUSH=$(PUSH) ./docker/build-images.sh
 	kubectl apply -f $(K8S_DIR)/namespace.yaml
 	kubectl -n $(NAMESPACE) apply -f $(K8S_DIR)/infrastructure/
 	# Apply config first to ensure env/urls exist
@@ -147,3 +148,15 @@ deploy-local:
 	# Apply all services (idempotent)
 	kubectl -n $(NAMESPACE) apply -f $(K8S_DIR)/services/
 	@echo "✅ Deploy complete. Check status with: kubectl -n $(NAMESPACE) get pods"
+
+.PHONY: undeploy-local
+undeploy-local:
+	@echo "🧹 Deleting Kubernetes namespace '$(NAMESPACE)' (if exists)..."
+	kubectl delete namespace $(NAMESPACE) --ignore-not-found
+	@echo "✅ Removed. To remove local images: docker rmi -f $$(docker images 'ledgerflux-*' -q) || true"
+
+# Pre-commit hooks
+.PHONY: pre-commit-install
+pre-commit-install:
+	uvx pre-commit install --install-hooks
+	@echo "✅ pre-commit installed. Hooks: ruff, black, mypy(strict), eof-fixer, trailing-whitespace"
