@@ -21,26 +21,20 @@ spec:
       - name: ingestor
         image: ledgerflux-ingestor:latest
         imagePullPolicy: Never  # For local development
-        args:
-        - --products
-        - "BTC-USD,ETH-USD,ADA-USD"
-        - --channels
-        - "ticker,heartbeat"
-        - --nats-urls
-        - "nats://nats:4222"
-        - --num-shards
-        - "4"
+        # Configs are provided via mounted JSON files
         env:
         - name: LOG_LEVEL
           valueFrom:
             configMapKeyRef:
               name: ledgerflux-config
               key: LOG_LEVEL
-        - name: NATS_URLS
-          valueFrom:
-            configMapKeyRef:
-              name: ledgerflux-config
-              key: NATS_URLS
+        volumeMounts:
+        - name: nats-config
+          mountPath: /app/services/common/nats.config.json
+          subPath: nats.config.json
+        - name: ingestor-config
+          mountPath: /app/services/ingestor/config.json
+          subPath: config.json
         resources:
           requests:
             memory: "256Mi"
@@ -64,6 +58,19 @@ spec:
             - "import requests; requests.get('http://localhost:8080/ready')"
           initialDelaySeconds: 5
           periodSeconds: 5
+      volumes:
+      - name: nats-config
+        configMap:
+          name: ledgerflux-nats-config
+          items:
+          - key: nats.config.json
+            path: nats.config.json
+      - name: ingestor-config
+        configMap:
+          name: ledgerflux-ingestor-config
+          items:
+          - key: config.json
+            path: config.json
 
 ---
 apiVersion: v1

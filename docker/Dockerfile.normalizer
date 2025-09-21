@@ -7,4 +7,3 @@ COPY services/normalizer/ ./services/normalizer/
 
 # Run normalizer (shard ID will be extracted from pod name)
 ENTRYPOINT ["uv", "run", "python", "-m", "services.normalizer.app"]
-CMD ["--nats-urls", "nats://nats:4222", "--input-stream", "market_ticks", "--output-stream", "market_normalized", "--num-shards", "4"]

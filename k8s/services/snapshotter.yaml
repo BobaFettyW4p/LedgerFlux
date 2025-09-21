@@ -21,34 +21,20 @@ spec:
       - name: snapshotter
         image: ledgerflux-snapshotter:latest
         imagePullPolicy: Never  # For local development
-        args:
-        - --nats-urls
-        - "nats://nats:4222"
-        - --input-stream
-        - "market_normalized"
-        - --num-shards
-        - "4"
-        - --shard-id
-        - "$(SHARD_ID)"
-        - --ddb-table
-        - "market-data-latest"
-        - --s3-bucket
-        - "market-data-snapshots"
         env:
-        - name: SHARD_ID
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.annotations['pod-index']
         - name: LOG_LEVEL
           valueFrom:
             configMapKeyRef:
               name: ledgerflux-config
               key: LOG_LEVEL
-        - name: NATS_URLS
-          valueFrom:
-            configMapKeyRef:
-              name: ledgerflux-config
-              key: NATS_URLS
+        volumeMounts:
+        - name: nats-config
+          mountPath: /app/services/common/nats.config.json
+          subPath: nats.config.json
+        - name: snapshotter-config
+          mountPath: /app/services/snapshotter/config.json
+          subPath: config.json
+        env:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -89,6 +75,19 @@ spec:
             - "import requests; requests.get('http://localhost:8082/ready')"
           initialDelaySeconds: 5
           periodSeconds: 5
+      volumes:
+      - name: nats-config
+        configMap:
+          name: ledgerflux-nats-config
+          items:
+          - key: nats.config.json
+            path: nats.config.json
+      - name: snapshotter-config
+        configMap:
+          name: ledgerflux-snapshotter-config
+          items:
+          - key: config.json
+            path: config.json
 
 ---
 apiVersion: v1

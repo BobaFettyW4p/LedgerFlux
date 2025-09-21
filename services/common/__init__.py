@@ -14,7 +14,7 @@ from .models import (
 )
 from .stream import NATSStreamManager, NATSConfig
 from .util import (
-    stable_hash, shard_product, validate_product_list, format_price, format_quantity
+    shard_index, stable_hash, shard_product, validate_product_list, format_quantity
 )
 
 __all__ = [
@@ -26,5 +26,5 @@ __all__ = [
     # Stream
     'NATSStreamManager', 'NATSConfig',
     # Utils
-    'stable_hash', 'shard_product', 'validate_product_list', 'format_price', 'format_quantity'
+    'shard_index', 'stable_hash', 'shard_product', 'validate_product_list', 'format_quantity'
 ]

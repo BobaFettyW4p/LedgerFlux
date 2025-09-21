@@ -1,67 +1,40 @@
-'''
-This is the snapshotter service.
-
-It consumes normalized market data from NATS JetStream, maintains per-product state,
-and writes latest data to DynamoDB while batching snapshots to S3 for persistence.
-
-Required fields:
---nats-urls: NATS JetStream URLs
---input-stream: Input stream name to consume from
---num-shards: Number of input shards
---shard-id: Shard ID this snapshotter instance handles (0 to num-shards-1)
---snapshot-period-ms: Snapshot period in milliseconds
---ddb-table: DynamoDB table name for latest data
---s3-bucket: S3 bucket for batched snapshots
-'''
-
-import argparse
 import asyncio
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Any
-from ..common import Tick, create_snapshot, NATSStreamManager, NATSConfig
+from services.common import Tick, create_snapshot, NATSStreamManager, NATSConfig
+from services.common.config import load_nats_config
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Market Data Snapshotter")
-    parser.add_argument('--nats-urls', type=str, default='nats://localhost:4222',
-                       help='NATS JetStream URLs')
-    parser.add_argument('--input-stream', type=str, default='market_normalized',
-                       help='Input stream name')
-    parser.add_argument('--num-shards', type=int, default=4,
-                       help='Number of input shards')
-    parser.add_argument('--shard-id', type=int, required=True,
-                       help='Shard ID this snapshotter instance handles (0 to num-shards-1)')
-    parser.add_argument('--snapshot-period-ms', type=int, default=60000,
-                       help='Snapshot period in milliseconds')
-    parser.add_argument('--ddb-table', type=str, default='market-data-latest',
-                       help='DynamoDB table name for latest data')
-    parser.add_argument('--s3-bucket', type=str, default='market-data-snapshots',
-                       help='S3 bucket for batched snapshots')
-    return parser.parse_args()
+def _load_service_config() -> Dict[str, Any]:
+    cfg_path = Path(__file__).with_name('config.json')
+    import json
+    with cfg_path.open('r', encoding='utf-8') as f:
+        return json.load(f)
 
 
 class Snapshotter:
-    """Market data snapshotter with state management and persistence"""
-    
-    def __init__(self, args):
-        self.args = args
-        self.shard_id = args.shard_id
-        self.num_shards = args.num_shards
-        self.snapshot_period_ms = args.snapshot_period_ms
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        shard_id = config.get('shard_id', 0)
+        if shard_id is None or str(shard_id).lower() == 'auto':
+            import re, os
+            pod_name = os.environ.get('HOSTNAME', '')
+            match = re.search(r'-(\d+)$', pod_name)
+            shard_id = int(match.group(1)) if match else 0
+        self.shard_id = int(shard_id)
+        self.num_shards = int(config.get('num_shards', 4))
+        self.snapshot_period_ms = int(config.get('snapshot_period_ms', 60000))
+        self.input_stream = str(config.get('input_stream', 'market_normalized'))
+        self.ddb_table = str(config.get('ddb_table', 'market-data-latest'))
+        self.s3_bucket = str(config.get('s3_bucket', 'market-data-snapshots'))
         
-        # NATS JetStream setup
-        nats_config = NATSConfig(
-            urls=args.nats_urls,
-            stream_name=args.input_stream,
-            retention_minutes=30
-        )
+        nats_config = load_nats_config(stream_name=self.input_stream)
         self.broker = NATSStreamManager(nats_config)
         
-        # State management
         self.product_states: Dict[str, Dict[str, Any]] = {}
         self.last_snapshots: Dict[str, datetime] = {}
         
-        # Statistics
         self.stats = {
             'messages_processed': 0,
             'states_updated': 0,
@@ -71,69 +44,59 @@ class Snapshotter:
             'errors': 0
         }
         
-        # Initialize AWS clients (stub for now)
         self.ddb_client = None
         self.s3_client = None
     
     async def start(self):
-        """Start the snapshotter"""
-        print(f"🚀 Starting Snapshotter (Shard {self.shard_id})")
-        print(f"📊 Input: {self.args.input_stream}.{self.shard_id}")
-        print(f"💾 DDB Table: {self.args.ddb_table}")
-        print(f"🪣 S3 Bucket: {self.args.s3_bucket}")
-        print(f"⏰ Snapshot Period: {self.snapshot_period_ms}ms")
+        print(f"Starting Snapshotter (Shard {self.shard_id})")
+        print(f"Input: {self.input_stream}.{self.shard_id}")
+        print(f"DDB Table: {self.ddb_table}")
+        print(f"S3 Bucket: {self.s3_bucket}")
+        print(f"Snapshot Period: {self.snapshot_period_ms}ms")
         
-        # Connect to message broker
         await self.broker.connect()
-        print("✅ Connected to message broker")
+        print("Connected to message broker")
         
-        # Start periodic snapshot task
         snapshot_task = asyncio.create_task(self._periodic_snapshots())
         
-        # Start processing messages
         await self._process_messages()
     
     async def _process_messages(self):
-        """Process messages from the input stream"""
-        print(f"🔄 Processing messages from shard {self.shard_id}...")
+        print(f"Processing messages from shard {self.shard_id}...")
         
         async def message_handler(tick: Tick):
             await self._process_tick(tick)
         
-        # Subscribe to our assigned shard
-        await self.broker.subscribe_to_shard(self.shard_id, message_handler)
+        import os
+        hostname = os.environ.get('HOSTNAME', 'local')
+        consumer_name = f"snapshotter-{hostname}-{self.shard_id}"
+        await self.broker.subscribe_to_shard(self.shard_id, message_handler, consumer_name=consumer_name)
     
     async def _process_tick(self, tick: Tick):
-        """Process a tick and update product state"""
         try:
             self.stats['messages_processed'] += 1
             
-            # Update product state
             await self._update_product_state(tick)
             
-            # Check if we should create a snapshot
             if self._should_create_snapshot(tick.product):
                 await self._create_snapshot(tick.product)
             
-            # Print tick info
-            print(f"📊 {tick.product}: ${tick.fields.last_trade.px:,.2f} "
+            print(f"{tick.product}: ${tick.fields.last_trade.px:,.2f} "
                   f"seq: {tick.seq} (state updated)")
             
-            # Print stats every 100 messages
+            # Print stats periodically
             if self.stats['messages_processed'] % 100 == 0:
-                print(f"\n📊 Stats: processed={self.stats['messages_processed']}, "
+                print(f"\nStats: processed={self.stats['messages_processed']}, "
                       f"states={self.stats['states_updated']}, "
                       f"snapshots={self.stats['snapshots_created']}\n")
                 
         except Exception as e:
-            print(f"❌ Error processing tick: {e}")
+            print(f"Error processing tick: {e}")
             self.stats['errors'] += 1
     
     async def _update_product_state(self, tick: Tick):
-        """Update the state for a product"""
         product = tick.product
         
-        # Initialize state if needed
         if product not in self.product_states:
             self.product_states[product] = {
                 'last_trade': None,
@@ -143,7 +106,7 @@ class Snapshotter:
                 'last_update': datetime.now()
             }
         
-        # Update state with latest tick data
+        #update state with latest tick data
         state = self.product_states[product]
         
         if tick.fields.last_trade:
@@ -172,28 +135,24 @@ class Snapshotter:
         
         self.stats['states_updated'] += 1
         
-        # Write to DynamoDB (stub for now)
+        # TODO: implement actual DB write
         await self._write_to_ddb(product, state)
     
     def _should_create_snapshot(self, product: str) -> bool:
-        """Check if we should create a snapshot for a product"""
         if product not in self.last_snapshots:
             return True
         
         last_snapshot = self.last_snapshots[product]
         now = datetime.now()
         
-        # Create snapshot if enough time has passed
         return (now - last_snapshot).total_seconds() * 1000 >= self.snapshot_period_ms
     
     async def _create_snapshot(self, product: str):
-        """Create a snapshot for a product"""
         if product not in self.product_states:
             return
         
         state = self.product_states[product]
         
-        # Create snapshot
         snapshot = create_snapshot(
             product=product,
             seq=state['last_seq'],
@@ -201,10 +160,8 @@ class Snapshotter:
             state=state
         )
         
-        # Publish snapshot
         await self.broker.publish_snapshot(snapshot)
         
-        # Update last snapshot time
         self.last_snapshots[product] = datetime.now()
         
         self.stats['snapshots_created'] += 1
@@ -216,50 +173,36 @@ class Snapshotter:
         # TODO: Implement actual DynamoDB write
         # For now, just simulate the write
         self.stats['ddb_writes'] += 1
-        
-        # In production, this would be:
-        # await self.ddb_client.put_item(
-        #     TableName=self.args.ddb_table,
-        #     Item={
-        #         'product': {'S': product},
-        #         'state': {'S': json.dumps(state)},
-        #         'timestamp': {'N': str(int(datetime.now().timestamp()))}
-        #     }
-        # )
     
     async def _periodic_snapshots(self):
-        """Periodic task to create snapshots"""
         while True:
             try:
                 await asyncio.sleep(self.snapshot_period_ms / 1000)
                 
-                # Create snapshots for all products
                 for product in self.product_states:
                     if self._should_create_snapshot(product):
                         await self._create_snapshot(product)
                         
             except Exception as e:
-                print(f"❌ Error in periodic snapshots: {e}")
+                print(f"Error in periodic snapshots: {e}")
                 self.stats['errors'] += 1
     
     async def stop(self):
-        """Stop the snapshotter"""
-        print("🛑 Stopping snapshotter...")
+        print("Stopping snapshotter...")
         await self.broker.disconnect()
-        print("✅ Snapshotter stopped")
+        print("Snapshotter stopped")
 
 
 async def main() -> None:
-    args = parse_args()
-    
-    snapshotter = Snapshotter(args)
+    config = _load_service_config()
+    snapshotter = Snapshotter(config)
     
     try:
         await snapshotter.start()
     except KeyboardInterrupt:
-        print("\n👋 Shutting down...")
+        print("\nShutting down...")
     except Exception as e:
-        print(f"❌ Fatal error: {e}")
+        print(f"Fatal error: {e}")
     finally:
         await snapshotter.stop()
 
