@@ -1,12 +1,12 @@
 # AGENTS.md
 
-> Operating instructions for a coding assistant to implement **Market Data Fan‑Out (Coinbase Edition)**. If requirements conflict, prefer **ARCHITECTURE.md** in repo root.
+> Operating instructions for a coding assistant to implement **Market Data Fan‑Out**. If requirements conflict, prefer **ARCHITECTURE.md** in repo root.
 
 ## Ground Rules
 
 1. **Python 3.12** with `asyncio`. Gateway: **FastAPI**. Broker: **NATS JetStream**.
 2. Strict quality gates: `ruff` + `black`, `mypy --strict`, `pytest` with high coverage of core logic.
-3. No secrets in repo. Use env vars; support IRSA on EKS.
+3. No secrets in repo. Use env vars.
 4. Deterministic tests where reasonable. For Coinbase, record/replay small WS/REST cassettes (e.g., `pytest-recording` or lightweight stub server) for CI.
 5. Performance budgets: WS send queue backpressure, batched DDB writes, and minimal JSON allocations.
 6. A preference for readable code above all else. i.e. if a variable references a product, name it `product` as opposed to `p`
