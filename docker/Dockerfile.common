@@ -21,3 +21,4 @@ ENV PYTHONPATH=/app
 
 # Default command
 CMD ["uv", "run", "python", "-m", "services.common"]
+

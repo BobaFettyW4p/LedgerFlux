@@ -1,0 +1,8 @@
+{
+  "input_stream": "market_normalized",
+  "num_shards": 4,
+  "shard_id": 0,
+  "snapshot_period_ms": 60000,
+  "ddb_table": "market-data-latest",
+  "s3_bucket": "market-data-snapshots"
+}

@@ -1,0 +1,6 @@
+{
+  "urls": "nats://localhost:4222",
+  "retention_minutes": 30,
+  "max_age_seconds": 1800,
+  "delete_existing": false
+}

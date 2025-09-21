@@ -7,4 +7,3 @@ COPY services/snapshotter/ ./services/snapshotter/
 
 # Run snapshotter (shard ID will be set via environment variable)
 ENTRYPOINT ["uv", "run", "python", "-m", "services.snapshotter.app"]
-CMD ["--nats-urls", "nats://nats:4222", "--shard-id", "0"]

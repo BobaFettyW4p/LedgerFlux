@@ -1,0 +1,7 @@
+{
+  "input_stream": "market.normalized",
+  "num_shards": 4,
+  "port": 8000,
+  "max_msgs_per_sec": 100,
+  "burst": 200
+}

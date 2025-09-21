@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ledgerflux-nats-config
+  namespace: ledgerflux
+data:
+  nats.config.json: |
+    {
+      "urls": "nats://nats:4222",
+      "retention_minutes": 30,
+      "max_age_seconds": 1800,
+      "delete_existing": false
+    }
+
