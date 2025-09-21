@@ -23,26 +23,19 @@ spec:
       - name: normalizer
         image: ledgerflux-normalizer:simple
         imagePullPolicy: Never  # For local development
-        args:
-        - --nats-urls
-        - "nats://nats:4222"
-        - --input-stream
-        - "market_ticks"
-        - --output-stream
-        - "market_normalized"
-        - --num-shards
-        - "4"
         env:
         - name: LOG_LEVEL
           valueFrom:
             configMapKeyRef:
               name: ledgerflux-config
               key: LOG_LEVEL
-        - name: NATS_URLS
-          valueFrom:
-            configMapKeyRef:
-              name: ledgerflux-config
-              key: NATS_URLS
+        volumeMounts:
+        - name: nats-config
+          mountPath: /app/services/common/nats.config.json
+          subPath: nats.config.json
+        - name: normalizer-config
+          mountPath: /app/services/normalizer/config.json
+          subPath: config.json
         resources:
           requests:
             memory: "256Mi"
@@ -66,6 +59,19 @@ spec:
             - "import sys; sys.exit(0)"
           initialDelaySeconds: 5
           periodSeconds: 5
+      volumes:
+      - name: nats-config
+        configMap:
+          name: ledgerflux-nats-config
+          items:
+          - key: nats.config.json
+            path: nats.config.json
+      - name: normalizer-config
+        configMap:
+          name: ledgerflux-normalizer-config
+          items:
+          - key: config.json
+            path: config.json
 
 ---
 apiVersion: v1
