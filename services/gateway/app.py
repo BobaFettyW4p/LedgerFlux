@@ -17,6 +17,7 @@ from services.common import (
 )
 from services.common import validate_product_list
 from services.common.config import load_nats_config
+from services.common.pg_store import PostgresSnapshotStore
 
 
 class RateLimiter:
@@ -78,6 +79,7 @@ class Gateway:
         self.clients: Dict[WebSocket, ClientConnection] = {}
         nats_config = load_nats_config(stream_name=self.input_stream)
         self.broker = NATSStreamManager(nats_config)
+        self.store = PostgresSnapshotStore()
         self.stats = {
             'clients_connected': 0,
             'messages_sent': 0,
@@ -129,6 +131,11 @@ class Gateway:
         print(f"Rate Limit: {self.max_msgs_per_sec} msg/sec")
 
         await self.broker.connect()
+        try:
+            await self.store.connect()
+            print("Connected to Postgres snapshot store")
+        except Exception as e:
+            print(f"Warning: could not connect to Postgres snapshot store: {e}")
         print("Connected to message broker")
 
         await self._start_message_processing()
@@ -187,17 +194,31 @@ class Gateway:
             
             if request.want_snapshot:
                 for product in products:
-                    # TODO: Fetch snapshot from DynamoDB
-                    # For now, send a placeholder
-                    snapshot = Snapshot(
-                        product=product,
-                        seq=0,
-                        ts_snapshot=int(datetime.now().timestamp() * 1_000_000_000),
-                        state={'last_trade': {'px': 0, 'qty': 0}}
-                    )
-                    
-                    snapshot_msg = SnapshotMessage(data=snapshot)
-                    await client.send_message(snapshot_msg.model_dump())
+                    sent = False
+                    try:
+                        row = await self.store.get_latest(product)
+                        if row:
+                            snapshot = Snapshot(
+                                product=row['product'],
+                                seq=int(row['last_seq']),
+                                ts_snapshot=int(row['ts_snapshot']),
+                                state=row['state'],
+                            )
+                            snapshot_msg = SnapshotMessage(data=snapshot)
+                            await client.send_message(snapshot_msg.model_dump())
+                            sent = True
+                    except Exception as e:
+                        print(f"Error fetching snapshot from Postgres for {product}: {e}")
+                    if not sent:
+                        # fallback placeholder if no persisted snapshot yet
+                        snapshot = Snapshot(
+                            product=product,
+                            seq=0,
+                            ts_snapshot=int(datetime.now().timestamp() * 1_000_000_000),
+                            state={'last_trade': {'px': 0, 'qty': 0}}
+                        )
+                        snapshot_msg = SnapshotMessage(data=snapshot)
+                        await client.send_message(snapshot_msg.model_dump())
             
             print(f"Client subscribed to: {products}")
             

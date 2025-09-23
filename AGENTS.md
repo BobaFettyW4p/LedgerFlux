@@ -6,9 +6,9 @@
 
 1. **Python 3.12** with `asyncio`. Gateway: **FastAPI**. Broker: **NATS JetStream**.
 2. Strict quality gates: `ruff` + `black`, `mypy --strict`, `pytest` with high coverage of core logic.
-3. No secrets in repo. Use env vars.
+3. No secrets in repo. Use env vars and Kubernetes Secrets/ServiceAccounts; no cloud‑specific IAM assumptions.
 4. Deterministic tests where reasonable. For Coinbase, record/replay small WS/REST cassettes (e.g., `pytest-recording` or lightweight stub server) for CI.
-5. Performance budgets: WS send queue backpressure, batched DDB writes, and minimal JSON allocations.
+5. Performance budgets: WS send queue backpressure, batched snapshot store writes (e.g., Redis/PostgreSQL), and minimal JSON allocations.
 6. A preference for readable code above all else. i.e. if a variable references a product, name it `product` as opposed to `p`
 
 ## Repository Layout
@@ -18,7 +18,7 @@
 ├─ ARCHITECTURE.md
 ├─ AGENTS.md
 ├─ Makefile
-├─ docker-compose.yaml                # local dev: nats, dynamodb-local, minio, services
+├─ docker-compose.yaml                # local dev: nats, redis, minio, services
 ├─ helm/                              # charts for each service
 ├─ k8s/                               # optional raw manifests
 ├─ services/
@@ -33,8 +33,8 @@
 │  │  └─ tests/
 │  ├─ snapshotter/
 │  │  ├─ app.py
-│  │  ├─ ddb.py
-│  │  ├─ s3.py
+│  │  ├─ ddb.py          # state store adapter (migrate to Redis/PostgreSQL)
+│  │  ├─ s3.py           # object store adapter (target MinIO)
 │  │  └─ tests/
 │  ├─ gateway/
 │  │  ├─ app.py          # FastAPI + WS endpoints
@@ -75,7 +75,7 @@
 **M1 – Scaffolding & Local Dev**
 
 * Initialize repo; Makefile tasks: `lint`, `typecheck`, `test`, `compose-up`, `compose-down`.
-* `k8s/minikube` with NATS, DynamoDB Local, MinIO, Prometheus, Grafana.
+* `k8s/minikube` with NATS, Redis, MinIO, Prometheus, Grafana.
 * Common models + Broker abstraction with `NatsBroker` stub; basic FastAPI gateway skeleton.
 
 **M2 – Coinbase Ingestor**
@@ -93,12 +93,12 @@
 
 **M4 – Snapshotter**
 
-* Maintain per‑product state; write DDB latest; batch snapshots to MinIO. Expose metrics: latency, write errors.
-* Tests: idempotent DDB update; S3 path correctness.
+* Maintain per‑product state; write latest snapshot to Redis or PostgreSQL; batch snapshots to MinIO. Expose metrics: latency, write errors.
+* Tests: idempotent KV/DB update; MinIO path correctness.
 
 **M5 – Gateway (WebSockets)**
 
-* `/ws` endpoint: handle subscribe/unsubscribe, `from_seq` backfill, initial snapshot from DDB then deltas from JetStream.
+* `/ws` endpoint: handle subscribe/unsubscribe, `from_seq` backfill, initial snapshot from PostgreSQL (or Redis cache) then deltas from JetStream.
 * Implement token bucket rate limit; per‑product throttle; send `rate_limit` messages rather than dropping connection.
 * Tests: protocol compliance, backfill, throttling behavior.
 
@@ -109,15 +109,15 @@
 
 **M7 – Kubernetes (Helm)**
 
-* Charts for services + NATS. Values for shard counts, resources, probes, preStop drain, ingress annotations for WebSockets.
+* Charts for services + NATS. Values for shard counts, resources, probes, preStop drain, ingress (NGINX) annotations for WebSockets.
 
 **M8 – CI/CD**
 
-* GitHub Actions: lint/typecheck/tests; build multi‑arch images; push to ECR; helm template/validate.
+* GitHub Actions: lint/typecheck/tests; build multi‑arch images; push to GHCR or local registry; helm template/validate.
 
 **Stretch – Canary & Replay**
 
-* Argo Rollouts canary with metric checks. Replay tool that reads S3 snapshot batches and re‑publishes to `market.raw` for deterministic reproductions.
+* Argo Rollouts canary with metric checks. Replay tool that reads MinIO snapshot batches and re‑publishes to `market.raw` for deterministic reproductions.
 
 ## Configuration (environment variables)
 
@@ -133,13 +133,13 @@
 * JetStream: `NATS_URLS`, `JS_STREAM_NAME`, `JS_RETENTION_MINUTES`.
 * Redis (optional): `REDIS_URL`, `STREAM_NAME`, `CONSUMER_GROUP`.
 * Gateway: `WS_MAX_MSGS_PER_SEC`, `WS_BURST`, `AUTH_API_KEYS`, `BACKFILL_MAX_MINUTES`.
-* Snapshotter: `SNAPSHOT_PERIOD_MS`, `S3_BUCKET`, `DDB_TABLE`.
+* Snapshotter: `SNAPSHOT_PERIOD_MS`, `OBJECT_BUCKET` (MinIO), `REDIS_URL` (or `PG_*` for PostgreSQL).
 
 ## Acceptance Criteria
 
 * **Ingestor**: handles disconnects and resubscribes within ≤ 3s; enforces contiguous `seq` per product or triggers resync; passes health metrics.
 * **Normalizer**: emits canonical `Tick` with monotonic `seq` per product; shard mapping stable across restarts.
-* **Snapshotter**: updates DDB row ≤ 250ms p50 after last tick; S3 batch ≤ 60s cadence or 5MB.
+* **Snapshotter**: updates PostgreSQL row ≤ 250ms p50 after last tick; MinIO batch ≤ 60s cadence or 5MB.
 * **Gateway**: on subscribe, snapshot ≤ 150ms p50; no reordering within a product; `from_seq` backfill works.
 * **System**: zero dropped connections during rolling restart (validated via preStop drain + readiness gates).
 
@@ -152,7 +152,7 @@
 
 ## Local Dev How‑To
 
-* `make compose-up` → boots NATS, DDB Local, MinIO, Prometheus, Grafana.
+* `make compose-up` → boots NATS, PostgreSQL, MinIO, Prometheus, Grafana.
 * `make run-ingestor` with `COINBASE_PRODUCTS` set.
 * `make watch-gateway` → simple CLI/web client to subscribe to products and observe snapshot+delta flow.
 
@@ -164,8 +164,8 @@
 
 ## Deployment Notes
 
-* Helm values expose shard count and resource requests; ALB/NLB configured for WS.
-* PreStop ≥ 20s; target deregistration delay ≥ PreStop.
+* Helm values expose shard count and resource requests; use NGINX Ingress for WebSockets in‑cluster.
+* PreStop ≥ 20s; use readiness gates and in‑cluster connection draining via NGINX timeouts.
 
 ## Non‑Goals (initial)
 
