@@ -27,6 +27,31 @@ spec:
             configMapKeyRef:
               name: ledgerflux-config
               key: LOG_LEVEL
+        - name: PG_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: ledgerflux-config
+              key: PG_HOST
+        - name: PG_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ledgerflux-config
+              key: PG_PORT
+        - name: PG_USER
+          valueFrom:
+            configMapKeyRef:
+              name: ledgerflux-config
+              key: PG_USER
+        - name: PG_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: ledgerflux-config
+              key: PG_DATABASE
+        - name: PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ledgerflux-postgres
+              key: PG_PASSWORD
         volumeMounts:
         - name: nats-config
           mountPath: /app/services/common/nats.config.json

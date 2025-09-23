@@ -47,13 +47,5 @@ spec:
             name: minio
             port:
               number: 9001
-  - host: dynamodb.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: dynamodb
-            port:
-              number: 8000
+  # Postgres is internal-only; no ingress route
+

@@ -4,7 +4,9 @@
 NAMESPACE ?= ledgerflux
 K8S_DIR ?= k8s
 
-.PHONY: help install lint typecheck test compose-up compose-down clean
+.PHONY: help install lint typecheck test compose-up compose-down clean \
+	kind-up kind-load kind-deploy kind-down \
+	minikube-up minikube-load minikube-deploy minikube-down
 
 # Default target
 help:
@@ -33,6 +35,14 @@ help:
 	@echo "Kubernetes:"
 	@echo "  deploy-local    - Build images and apply k8s manifests"
 	@echo "  undeploy-local  - Delete namespace and all resources"
+	@echo "  kind-up         - Create a Kind cluster and enable ingress"
+	@echo "  kind-load       - Load local images into Kind"
+	@echo "  kind-deploy     - Apply infra + services to Kind and wait"
+	@echo "  kind-down       - Delete the Kind cluster"
+	@echo "  minikube-up     - Start Minikube and enable ingress"
+	@echo "  minikube-load   - Load local images into Minikube"
+	@echo "  minikube-deploy - Apply infra + services to Minikube and wait"
+	@echo "  minikube-down   - Stop and delete Minikube"
 	@echo ""
 
 # Install dependencies
@@ -58,7 +68,7 @@ compose-up:
 	@echo "✅ Infrastructure started!"
 	@echo "🌐 NATS: http://localhost:8222"
 	@echo "🔴 Redis: localhost:6379"
-	@echo "💾 DynamoDB: http://localhost:8000"
+	@echo "🗄️ PostgreSQL: localhost:5432 (db=ledgerflux, user=postgres)"
 	@echo "🪣 MinIO: http://localhost:9001 (admin/minioadmin)"
 	@echo "📊 Prometheus: http://localhost:9090"
 	@echo "📈 Grafana: http://localhost:3000 (admin/admin)"
@@ -138,6 +148,91 @@ docker-build-all:
 	./docker/build-images.sh
 
 .PHONY: deploy-local
+
+# Kind helpers
+KIND_CLUSTER ?= ledgerflux
+KIND_IMAGES := ledgerflux-common:latest ledgerflux-ingestor:latest ledgerflux-normalizer:latest ledgerflux-snapshotter:latest ledgerflux-gateway:latest
+
+kind-up:
+	@echo "🧱 Creating Kind cluster '$(KIND_CLUSTER)'..."
+	kind create cluster --name $(KIND_CLUSTER) || true
+	@echo "🌐 Installing ingress-nginx in Kind..."
+	kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+	@echo "⏳ Waiting for ingress-nginx controller..."
+	kubectl wait --namespace ingress-nginx \
+	  --for=condition=ready pod \
+	  --selector=app.kubernetes.io/component=controller \
+	  --timeout=180s
+	@echo "✅ Kind is ready. Add to /etc/hosts: 127.0.0.1 ledgerflux.local nats.local minio.local"
+
+kind-load:
+	@echo "📦 Building images ..."
+	DOCKER_BUILDKIT=1 ./docker/build-images.sh
+	@echo "📤 Loading images into Kind ..."
+	@for img in $(KIND_IMAGES); do \
+	  echo " - $$img"; \
+	  kind load docker-image $$img --name $(KIND_CLUSTER); \
+	done
+
+kind-deploy:
+	@echo "🚀 Deploying to Kind ..."
+	kubectl apply -f k8s/namespace.yaml
+	kubectl apply -f k8s/infrastructure/
+	kubectl apply -f k8s/services/
+	kubectl apply -f k8s/ingress/
+	@echo "⏳ Waiting for deployments ..."
+	kubectl wait --for=condition=available --timeout=300s deploy/nats -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s deploy/postgres -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s deploy/minio -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s deploy/ingestor -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s statefulset/normalizer -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s deploy/snapshotter -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s deploy/gateway -n ledgerflux
+	@echo "✅ Deployed. Visit http://ledgerflux.local/"
+
+kind-down:
+	@echo "🗑️ Deleting Kind cluster '$(KIND_CLUSTER)'..."
+	kind delete cluster --name $(KIND_CLUSTER) || true
+
+# Minikube helpers
+MINIKUBE_CPUS ?= 2
+MINIKUBE_MEM ?= 4096
+
+minikube-up:
+	@echo "🚜 Starting Minikube ..."
+	minikube start --cpus=$(MINIKUBE_CPUS) --memory=$(MINIKUBE_MEM)
+	@echo "🌐 Enabling ingress ..."
+	minikube addons enable ingress
+	@echo "ℹ️  Add to /etc/hosts: $$(minikube ip) ledgerflux.local nats.local minio.local"
+
+minikube-load:
+	@echo "📦 Building images ..."
+	DOCKER_BUILDKIT=1 ./docker/build-images.sh
+	@echo "📤 Loading images into Minikube ..."
+	@for img in $(KIND_IMAGES); do \
+	  echo " - $$img"; \
+	  minikube image load $$img; \
+	done
+
+minikube-deploy:
+	@echo "🚀 Deploying to Minikube ..."
+	kubectl apply -f k8s/namespace.yaml
+	kubectl apply -f k8s/infrastructure/
+	kubectl apply -f k8s/services/
+	kubectl apply -f k8s/ingress/
+	@echo "⏳ Waiting for deployments ..."
+	kubectl wait --for=condition=available --timeout=300s deploy/nats -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s deploy/postgres -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s deploy/minio -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s deploy/ingestor -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s statefulset/normalizer -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s deploy/snapshotter -n ledgerflux
+	kubectl wait --for=condition=available --timeout=300s deploy/gateway -n ledgerflux
+	@echo "✅ Deployed. Visit http://$$(minikube ip)/ (or hosts entry for ledgerflux.local)."
+
+minikube-down:
+	@echo "🛑 Stopping Minikube ..."
+	minikube delete || true
 deploy-local:
 	@echo "🚢 Building images and deploying to Kubernetes namespace '$(NAMESPACE)'..."
 	VERSION=$(VERSION) REGISTRY=$(REGISTRY) PUSH=$(PUSH) ./docker/build-images.sh
