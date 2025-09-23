@@ -9,8 +9,5 @@ data:
       "input_stream": "market_normalized",
       "num_shards": 4,
       "shard_id": "auto",
-      "snapshot_period_ms": 60000,
-      "ddb_table": "market-data-latest",
-      "s3_bucket": "market-data-snapshots"
+      "snapshot_period_ms": 60000
     }
-

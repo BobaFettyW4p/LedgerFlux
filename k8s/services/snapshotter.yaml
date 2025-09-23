@@ -35,23 +35,31 @@ spec:
           mountPath: /app/services/snapshotter/config.json
           subPath: config.json
         env:
-        - name: AWS_ACCESS_KEY_ID
+        - name: PG_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: ledgerflux-config
+              key: PG_HOST
+        - name: PG_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ledgerflux-config
+              key: PG_PORT
+        - name: PG_USER
+          valueFrom:
+            configMapKeyRef:
+              name: ledgerflux-config
+              key: PG_USER
+        - name: PG_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: ledgerflux-config
+              key: PG_DATABASE
+        - name: PG_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: ledgerflux-secrets
-              key: AWS_ACCESS_KEY_ID
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: ledgerflux-secrets
-              key: AWS_SECRET_ACCESS_KEY
-        - name: AWS_DEFAULT_REGION
-          valueFrom:
-            secretKeyRef:
-              name: ledgerflux-secrets
-              key: AWS_DEFAULT_REGION
-        - name: AWS_ENDPOINT_URL
-          value: "http://minio:9000"
+              name: ledgerflux-postgres
+              key: PG_PASSWORD
         resources:
           requests:
             memory: "256Mi"

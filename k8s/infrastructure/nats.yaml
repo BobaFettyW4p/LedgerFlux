@@ -112,3 +112,5 @@ spec:
     name: monitor
   selector:
     app: nats
+
+

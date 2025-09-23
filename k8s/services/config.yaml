@@ -18,8 +18,10 @@ data:
   
   # Snapshotter configuration
   SNAPSHOT_PERIOD_MS: "60000"
-  S3_BUCKET: "market-data-snapshots"
-  DDB_TABLE: "market-data-latest"
+  PG_HOST: "postgres"
+  PG_PORT: "5432"
+  PG_USER: "postgres"
+  PG_DATABASE: "ledgerflux"
   
   # Ingester configuration
   RESYNC_MAX_QUEUE_MS: "2000"
@@ -32,11 +34,8 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: ledgerflux-secrets
+  name: ledgerflux-postgres
   namespace: ledgerflux
 type: Opaque
 data:
-  # AWS credentials (for DynamoDB and S3)
-  AWS_ACCESS_KEY_ID: bWluaW9hZG1pbg==  # minioadmin
-  AWS_SECRET_ACCESS_KEY: bWluaW9hZG1pbg==  # minioadmin
-  AWS_DEFAULT_REGION: dXMtZWFzdC0x  # us-east-1
+  PG_PASSWORD: cG9zdGdyZXM=

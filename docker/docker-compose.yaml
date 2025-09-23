@@ -27,19 +27,21 @@ services:
       timeout: 10s
       retries: 3
 
-  # DynamoDB Local for state storage
-  dynamodb:
-    image: amazon/dynamodb-local:2.0.0
+  # PostgreSQL for snapshot state storage
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ledgerflux
     ports:
-      - "8000:8000"
-    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+      - "5432:5432"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
 
-  # MinIO for S3-compatible object storage
+  # MinIO for object storage
   minio:
     image: minio/minio:latest
     ports:
@@ -90,4 +92,3 @@ volumes:
   minio_data:
   prometheus_data:
   grafana_data:
-

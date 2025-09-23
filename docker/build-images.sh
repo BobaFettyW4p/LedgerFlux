@@ -5,7 +5,7 @@
 # Usage:
 #   ./docker/build-images.sh                 # builds local images with tag :latest
 #   VERSION=v0.1.0 ./docker/build-images.sh  # picks a different tag
-#   REGISTRY=myrepo/ ./docker/build-images.sh     # prefix images (e.g., ECR/GHCR)
+#   REGISTRY=myrepo/ ./docker/build-images.sh     # prefix images (e.g., GHCR)
 #   PUSH=true REGISTRY=... ./docker/build-images.sh  # also push built images
 #
 # Notes:
