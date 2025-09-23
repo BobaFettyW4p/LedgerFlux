@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Operating instructions for a coding assistant to implement **Market Data Fan‑Out (Coinbase Edition)**. If requirements conflict, prefer **ARCHITECTURE.md** in repo root.
+> Operating instructions for a coding assistant to implement **Market Data Fan‑Out**. If requirements conflict, prefer **ARCHITECTURE.md** in repo root.
 
 ## Ground Rules
 
