@@ -2,7 +2,7 @@
 
 ## Goal
 
-A production‑style, cloud‑native market‑data fan‑out that ingests **real Coinbase Exchange** WebSocket data, normalizes it, shards by symbol, and broadcasts **snapshots + incremental updates** over WebSockets with backfill, per‑client rate limits, and observability. Target stack: **Python, Docker, Kubernetes, AWS, GitHub Actions**.
+A production‑style, cloud‑native market‑data fan‑out that ingests **real Coinbase Exchange** WebSocket data, normalizes it, shards by symbol, and broadcasts **snapshots + incremental updates** over WebSockets with backfill, per‑client rate limits, and observability. Target stack: **Python, Docker, Kubernetes/Minikube, GitHub Actions**.
 
 > Terminology: Coinbase "product" ≙ symbol pair (e.g., `BTC-USD`). We treat each product as an ordering domain.
 
@@ -21,9 +21,9 @@ A production‑style, cloud‑native market‑data fan‑out that ingests **real
         v
 [NATS JetStream] subjects: market.raw, market.ticks.{shard}
         |\
-        | \→ [Snapshotter] → DynamoDB (latest per product)
+        | \→ [Snapshotter] → Redis or PostgreSQL (latest per product)
         |                     \
-        |                      → S3 (batched snapshots for replay)
+        |                      → MinIO (batched snapshots for replay)
         |
    [Gateway (WS)]
     - per-product subscribe
@@ -33,7 +33,7 @@ A production‑style, cloud‑native market‑data fan‑out that ingests **real
         v
      Clients (browser/CLI/services)
 
-Infra: Prometheus/Grafana, OpenTelemetry; Helm on EKS; Ingress (ALB/NLB) with graceful drain.
+Infra: Prometheus/Grafana, OpenTelemetry; Helm on Minikube; Ingress (NGINX) with graceful drain.
 ```
 
 ## Core Components
@@ -52,14 +52,14 @@ Infra: Prometheus/Grafana, OpenTelemetry; Helm on EKS; Ingress (ALB/NLB) with gr
 * **Snapshotter**
 
   * Maintains rolling per‑product state (last trade, best bid/ask, last\_seq, etc.).
-  * Writes **latest snapshot** to **DynamoDB** (PK=`product`), with `version`, `last_seq`, `ts_snapshot`.
-  * Periodically batches snapshots to **S3** for historical replay (`s3://md-snapshots/YYYY/MM/DD/...`).
+  * Writes **latest snapshot** to **Redis** (hash per product) or **PostgreSQL** (table keyed by `product`), with `version`, `last_seq`, `ts_snapshot`.
+  * Periodically batches snapshots to **MinIO** for historical replay (`minio://md-snapshots/YYYY/MM/DD/...`).
 * **Gateway (FastAPI WebSockets)**
 
   * Client protocol: subscribe/unsubscribe; optional `from_seq` for backfill; heartbeats.
-  * On subscribe: fetch snapshot from DynamoDB, then stream deltas from JetStream starting at `snapshot.last_seq + 1`.
+  * On subscribe: fetch snapshot from Redis/PostgreSQL, then stream deltas from JetStream starting at `snapshot.last_seq + 1`.
   * Implements per‑client rate limits (token bucket) and per‑symbol throttle.
-  * Graceful rollout: preStop drain, readiness gates, and ALB/NLB deregistration delay.
+  * Graceful rollout: preStop drain, readiness gates, and NGINX ingress connection draining/timeouts.
 * **Backfill/Replayer**
 
   * On reconnect, clients pass `from_seq` per product; server streams retained deltas from JetStream. If retention exceeded, send a fresh snapshot and resume live.
@@ -148,17 +148,18 @@ Server→Client:
   * `snapshotter` (replicas = shard count)
   * `gateway` (HPA on connections/RPS)
   * `nats` (StatefulSet) or managed Redis (optional)
-* Ingress: ALB/NLB configured for WebSockets; idle timeout ≥ 120s; connection draining ≥ gateway preStop.
+* Ingress: NGINX Ingress configured for WebSockets; idle timeout ≥ 120s; connection draining ≥ gateway preStop.
 * PDBs, liveness/readiness probes; gateway readiness true only after broker attach + warm cache.
 
-## AWS Resources
+## Cluster Resources
 
-* ECR for images; S3 bucket `md-snapshots`; DynamoDB `md_snapshots` (PK `product`).
-* IRSA for DDB/S3 permissions.
+* Container registry: GitHub Container Registry (GHCR) or local Minikube registry add‑on.
+* Object storage: MinIO (single‑node or distributed) for snapshot batches.
+* State store for latest snapshots: Redis (AOF persistence) or PostgreSQL (via a Helm chart).
 
 ## CI/CD (GitHub Actions)
 
-* Lint, typecheck, tests; build/push images; helm template/validate; optional deploy to EKS.
+* Lint, typecheck, tests; build/push images (GHCR); helm template/validate; optional deploy to Minikube via `kubectl`/`helm`.
 * Versioning: SemVer + image tag = git SHA.
 
 ## Observability
@@ -172,4 +173,4 @@ Server→Client:
 
 ## Non‑Goals (initial)
 
-* Full depth book management for all products; cross‑region replication; archival beyond S3 batches.
+* Full depth book management for all products; cross‑region replication; archival beyond periodic object storage batches.

@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 from services.common import Tick, create_snapshot, NATSStreamManager, NATSConfig
+from services.common.pg_store import PostgresSnapshotStore
 from services.common.config import load_nats_config
 
 
@@ -26,11 +27,12 @@ class Snapshotter:
         self.num_shards = int(config.get('num_shards', 4))
         self.snapshot_period_ms = int(config.get('snapshot_period_ms', 60000))
         self.input_stream = str(config.get('input_stream', 'market_normalized'))
-        self.ddb_table = str(config.get('ddb_table', 'market-data-latest'))
-        self.s3_bucket = str(config.get('s3_bucket', 'market-data-snapshots'))
+        # Postgres connection is read from PG_* env vars or config 'pg_dsn'
+        self.pg_dsn = config.get('pg_dsn')
         
         nats_config = load_nats_config(stream_name=self.input_stream)
         self.broker = NATSStreamManager(nats_config)
+        self.store = PostgresSnapshotStore(self.pg_dsn)
         
         self.product_states: Dict[str, Dict[str, Any]] = {}
         self.last_snapshots: Dict[str, datetime] = {}
@@ -39,23 +41,21 @@ class Snapshotter:
             'messages_processed': 0,
             'states_updated': 0,
             'snapshots_created': 0,
-            'ddb_writes': 0,
-            's3_writes': 0,
+            'pg_writes': 0,
             'errors': 0
         }
         
-        self.ddb_client = None
-        self.s3_client = None
+        self._store_ready = False
     
     async def start(self):
         print(f"Starting Snapshotter (Shard {self.shard_id})")
         print(f"Input: {self.input_stream}.{self.shard_id}")
-        print(f"DDB Table: {self.ddb_table}")
-        print(f"S3 Bucket: {self.s3_bucket}")
+        print("Snapshot store: Postgres (table: snapshots)")
         print(f"Snapshot Period: {self.snapshot_period_ms}ms")
         
         await self.broker.connect()
         print("Connected to message broker")
+        await self._init_store()
         
         snapshot_task = asyncio.create_task(self._periodic_snapshots())
         
@@ -135,8 +135,7 @@ class Snapshotter:
         
         self.stats['states_updated'] += 1
         
-        # TODO: implement actual DB write
-        await self._write_to_ddb(product, state)
+        await self._write_to_pg(product, state)
     
     def _should_create_snapshot(self, product: str) -> bool:
         if product not in self.last_snapshots:
@@ -168,11 +167,32 @@ class Snapshotter:
         
         print(f"📸 Created snapshot for {product} (seq: {snapshot.seq})")
     
-    async def _write_to_ddb(self, product: str, state: Dict[str, Any]):
-        """Write latest state to DynamoDB (stub implementation)"""
-        # TODO: Implement actual DynamoDB write
-        # For now, just simulate the write
-        self.stats['ddb_writes'] += 1
+    async def _init_store(self) -> None:
+        try:
+            await self.store.ensure_schema()
+            self._store_ready = True
+            print("Connected to Postgres and ensured schema")
+        except Exception as e:
+            print(f"Failed to initialize Postgres store: {e}")
+            self._store_ready = False
+
+    async def _write_to_pg(self, product: str, state: Dict[str, Any]):
+        if not self._store_ready:
+            return
+        try:
+            last_seq = int(state['last_seq'])
+            ts_snapshot_ns = int(state['last_update'].timestamp() * 1_000_000_000)
+            await self.store.upsert_latest(
+                product=product,
+                version=1,
+                last_seq=last_seq,
+                ts_snapshot_ns=ts_snapshot_ns,
+                state=state,
+            )
+            self.stats['pg_writes'] += 1
+        except Exception as e:
+            print(f"Error writing snapshot to Postgres: {e}")
+            self.stats['errors'] += 1
     
     async def _periodic_snapshots(self):
         while True:
@@ -190,6 +210,7 @@ class Snapshotter:
     async def stop(self):
         print("Stopping snapshotter...")
         await self.broker.disconnect()
+        await self.store.close()
         print("Snapshotter stopped")
 
 
