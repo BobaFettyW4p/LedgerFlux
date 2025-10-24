@@ -19,27 +19,15 @@ data:
     write_deadline: "10s"
 
 ---
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: nats-data
-  namespace: ledgerflux
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-
----
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: nats
   namespace: ledgerflux
   labels:
     app: nats
 spec:
+  serviceName: nats-headless
   replicas: 1
   selector:
     matchLabels:
@@ -89,9 +77,35 @@ spec:
       - name: nats-config
         configMap:
           name: nats-config
-      - name: nats-data
-        persistentVolumeClaim:
-          claimName: nats-data
+  volumeClaimTemplates:
+  - metadata:
+      name: nats-data
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats-headless
+  namespace: ledgerflux
+  labels:
+    app: nats
+spec:
+  clusterIP: None
+  ports:
+  - port: 4222
+    targetPort: 4222
+    name: client
+  - port: 8222
+    targetPort: 8222
+    name: monitor
+  selector:
+    app: nats
 
 ---
 apiVersion: v1
@@ -112,5 +126,4 @@ spec:
     name: monitor
   selector:
     app: nats
-
 

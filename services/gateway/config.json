@@ -1,7 +1,11 @@
 {
-  "input_stream": "market.normalized",
+  "input_stream": "market_normalized",
   "num_shards": 4,
   "port": 8000,
   "max_msgs_per_sec": 100,
-  "burst": 200
+  "burst": 200,
+  "backfill_ring_size": 2000,
+  "backfill_max_messages": 5000,
+  "backfill_fetch_batch": 64,
+  "backfill_fetch_timeout": 1.0
 }

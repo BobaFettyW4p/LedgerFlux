@@ -3,10 +3,11 @@
 # Defaults
 NAMESPACE ?= ledgerflux
 K8S_DIR ?= k8s
+VERSION ?= $(shell git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)
 
 .PHONY: help install lint typecheck test compose-up compose-down clean \
 	kind-up kind-load kind-deploy kind-down \
-	minikube-up minikube-load minikube-deploy minikube-down
+	minikube-up minikube-load minikube-deploy minikube-redeploy minikube-down
 
 # Default target
 help:
@@ -151,7 +152,11 @@ docker-build-all:
 
 # Kind helpers
 KIND_CLUSTER ?= ledgerflux
-KIND_IMAGES := ledgerflux-common:latest ledgerflux-ingestor:latest ledgerflux-normalizer:latest ledgerflux-snapshotter:latest ledgerflux-gateway:latest
+IMAGES := ledgerflux-common ledgerflux-ingestor ledgerflux-normalizer ledgerflux-snapshotter ledgerflux-gateway
+KIND_IMAGES := $(addsuffix :latest,$(IMAGES))
+# Some manifests pin special tags (e.g., normalizer:simple). Ensure those are loaded too.
+EXTRA_IMAGE_TAGS := ledgerflux-normalizer:simple
+VERSIONED_IMAGES := $(addsuffix :$(VERSION),$(IMAGES))
 
 kind-up:
 	@echo "🧱 Creating Kind cluster '$(KIND_CLUSTER)'..."
@@ -167,9 +172,17 @@ kind-up:
 
 kind-load:
 	@echo "📦 Building images ..."
-	DOCKER_BUILDKIT=1 ./docker/build-images.sh
+	VERSION=$(VERSION) DOCKER_BUILDKIT=1 ./docker/build-images.sh
 	@echo "📤 Loading images into Kind ..."
 	@for img in $(KIND_IMAGES); do \
+	  echo " - $$img"; \
+	  kind load docker-image $$img --name $(KIND_CLUSTER); \
+	done
+	@for img in $(VERSIONED_IMAGES); do \
+	  echo " - $$img"; \
+	  kind load docker-image $$img --name $(KIND_CLUSTER); \
+	done
+	@for img in $(EXTRA_IMAGE_TAGS); do \
 	  echo " - $$img"; \
 	  kind load docker-image $$img --name $(KIND_CLUSTER); \
 	done
@@ -181,13 +194,29 @@ kind-deploy:
 	kubectl apply -f k8s/services/
 	kubectl apply -f k8s/ingress/
 	@echo "⏳ Waiting for deployments ..."
-	kubectl wait --for=condition=available --timeout=300s deploy/nats -n ledgerflux
+	kubectl rollout status statefulset/nats -n ledgerflux --timeout=300s
 	kubectl wait --for=condition=available --timeout=300s deploy/postgres -n ledgerflux
 	kubectl wait --for=condition=available --timeout=300s deploy/minio -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/ingestor -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s statefulset/normalizer -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/snapshotter -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/gateway -n ledgerflux
+	# Wait for ingestor (Deployment)
+	(if kubectl -n ledgerflux get deploy/ingestor >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status deploy/ingestor --timeout=300s; \
+	fi)
+	# Wait for normalizer (StatefulSet)
+	(if kubectl -n ledgerflux get statefulset/normalizer >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status statefulset/normalizer --timeout=300s; \
+	fi)
+	# Wait for snapshotter (StatefulSet or Deployment)
+	(if kubectl -n ledgerflux get statefulset/snapshotter >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status statefulset/snapshotter --timeout=300s; \
+	elif kubectl -n ledgerflux get deploy/snapshotter >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status deploy/snapshotter --timeout=300s; \
+	fi)
+	# Wait for gateway (StatefulSet or Deployment)
+	(if kubectl -n ledgerflux get statefulset/gateway >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status statefulset/gateway --timeout=300s; \
+	elif kubectl -n ledgerflux get deploy/gateway >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status deploy/gateway --timeout=300s; \
+	fi)
 	@echo "✅ Deployed. Visit http://ledgerflux.local/"
 
 kind-down:
@@ -207,9 +236,17 @@ minikube-up:
 
 minikube-load:
 	@echo "📦 Building images ..."
-	DOCKER_BUILDKIT=1 ./docker/build-images.sh
+	VERSION=$(VERSION) DOCKER_BUILDKIT=1 ./docker/build-images.sh
 	@echo "📤 Loading images into Minikube ..."
 	@for img in $(KIND_IMAGES); do \
+	  echo " - $$img"; \
+	  minikube image load $$img; \
+	done
+	@for img in $(VERSIONED_IMAGES); do \
+	  echo " - $$img"; \
+	  minikube image load $$img; \
+	done
+	@for img in $(EXTRA_IMAGE_TAGS); do \
 	  echo " - $$img"; \
 	  minikube image load $$img; \
 	done
@@ -221,18 +258,118 @@ minikube-deploy:
 	kubectl apply -f k8s/services/
 	kubectl apply -f k8s/ingress/
 	@echo "⏳ Waiting for deployments ..."
-	kubectl wait --for=condition=available --timeout=300s deploy/nats -n ledgerflux
+	kubectl rollout status statefulset/nats -n ledgerflux --timeout=300s
 	kubectl wait --for=condition=available --timeout=300s deploy/postgres -n ledgerflux
 	kubectl wait --for=condition=available --timeout=300s deploy/minio -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/ingestor -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s statefulset/normalizer -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/snapshotter -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/gateway -n ledgerflux
+	# Wait for ingestor (Deployment)
+	(if kubectl -n ledgerflux get deploy/ingestor >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status deploy/ingestor --timeout=300s; \
+	fi)
+	# Wait for normalizer (StatefulSet)
+	(if kubectl -n ledgerflux get statefulset/normalizer >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status statefulset/normalizer --timeout=300s; \
+	fi)
+	# Wait for snapshotter (StatefulSet or Deployment)
+	(if kubectl -n ledgerflux get statefulset/snapshotter >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status statefulset/snapshotter --timeout=300s; \
+	elif kubectl -n ledgerflux get deploy/snapshotter >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status deploy/snapshotter --timeout=300s; \
+	fi)
+	# Wait for gateway (StatefulSet or Deployment)
+	(if kubectl -n ledgerflux get statefulset/gateway >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status statefulset/gateway --timeout=300s; \
+	elif kubectl -n ledgerflux get deploy/gateway >/dev/null 2>&1; then \
+	  kubectl -n ledgerflux rollout status deploy/gateway --timeout=300s; \
+	fi)
 	@echo "✅ Deployed. Visit http://$$(minikube ip)/ (or hosts entry for ledgerflux.local)."
+
+# Convenience: build+load images, apply manifests, then restart pods so :latest changes take effect
+minikube-redeploy: minikube-load minikube-deploy minikube-set-images
+	@echo "✅ Minikube redeploy complete."
+
+.PHONY: minikube-set-images
+minikube-set-images:
+	@echo "🖼️  Updating workload images to tag $(VERSION) ..."
+	# Ingestor Deployment
+	(if kubectl -n $(NAMESPACE) get deploy/ingestor >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) set image deploy/ingestor ingestor=ledgerflux-ingestor:$(VERSION); \
+	fi)
+	# Gateway Deployment
+	(if kubectl -n $(NAMESPACE) get deploy/gateway >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) set image deploy/gateway gateway=ledgerflux-gateway:$(VERSION); \
+	fi)
+	# Snapshotter StatefulSet
+	(if kubectl -n $(NAMESPACE) get statefulset/snapshotter >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) set image statefulset/snapshotter snapshotter=ledgerflux-snapshotter:$(VERSION); \
+	fi)
+	# Normalizer StatefulSet
+	(if kubectl -n $(NAMESPACE) get statefulset/normalizer >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) set image statefulset/normalizer normalizer=ledgerflux-normalizer:$(VERSION); \
+	fi)
+	@echo "⏳ Waiting for image rollouts ..."
+	(if kubectl -n $(NAMESPACE) get deploy/ingestor >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout status deploy/ingestor --timeout=300s; \
+	fi)
+	(if kubectl -n $(NAMESPACE) get deploy/gateway >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout status deploy/gateway --timeout=300s; \
+	fi)
+	(if kubectl -n $(NAMESPACE) get statefulset/snapshotter >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout status statefulset/snapshotter --timeout=300s; \
+	fi)
+	(if kubectl -n $(NAMESPACE) get statefulset/normalizer >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout status statefulset/normalizer --timeout=300s; \
+	fi)
 
 minikube-down:
 	@echo "🛑 Stopping Minikube ..."
 	minikube delete || true
+
+# Rollout restarts for services after deploy (useful for :latest images)
+.PHONY: k8s-restart
+k8s-restart:
+	@echo "🔄 Rolling out restarts in namespace '$(NAMESPACE)' ..."
+	# Ingestor (Deployment)
+	(if kubectl -n $(NAMESPACE) get deploy/ingestor >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout restart deploy/ingestor; \
+	fi)
+	# Gateway (prefer StatefulSet; fallback to Deployment)
+	(if kubectl -n $(NAMESPACE) get statefulset/gateway >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout restart statefulset/gateway; \
+	elif kubectl -n $(NAMESPACE) get deploy/gateway >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout restart deploy/gateway; \
+	fi)
+	# Snapshotter (prefer StatefulSet; fallback to Deployment)
+	(if kubectl -n $(NAMESPACE) get statefulset/snapshotter >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout restart statefulset/snapshotter; \
+	elif kubectl -n $(NAMESPACE) get deploy/snapshotter >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout restart deploy/snapshotter; \
+	fi)
+	# Normalizer (StatefulSet)
+	(if kubectl -n $(NAMESPACE) get statefulset/normalizer >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout restart statefulset/normalizer; \
+	fi)
+	@echo "⏳ Waiting for rollouts to complete ..."
+	# Ingestor
+	(if kubectl -n $(NAMESPACE) get deploy/ingestor >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout status deploy/ingestor --timeout=300s; \
+	fi)
+	# Gateway
+	(if kubectl -n $(NAMESPACE) get statefulset/gateway >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout status statefulset/gateway --timeout=300s; \
+	elif kubectl -n $(NAMESPACE) get deploy/gateway >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout status deploy/gateway --timeout=300s; \
+	fi)
+	# Snapshotter
+	(if kubectl -n $(NAMESPACE) get statefulset/snapshotter >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout status statefulset/snapshotter --timeout=300s; \
+	elif kubectl -n $(NAMESPACE) get deploy/snapshotter >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout status deploy/snapshotter --timeout=300s; \
+	fi)
+	# Normalizer
+	(if kubectl -n $(NAMESPACE) get statefulset/normalizer >/dev/null 2>&1; then \
+	  kubectl -n $(NAMESPACE) rollout status statefulset/normalizer --timeout=300s; \
+	fi)
+	@echo "✅ Restarts complete."
 deploy-local:
 	@echo "🚢 Building images and deploying to Kubernetes namespace '$(NAMESPACE)'..."
 	VERSION=$(VERSION) REGISTRY=$(REGISTRY) PUSH=$(PUSH) ./docker/build-images.sh

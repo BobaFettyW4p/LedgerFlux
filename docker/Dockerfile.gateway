@@ -2,6 +2,9 @@
 ARG BASE_IMAGE=ledgerflux-common:latest
 FROM ${BASE_IMAGE}
 
+# Ensure latest shared code is present (override base copy in dev)
+COPY services/common/ ./services/common/
+
 # Copy gateway service
 COPY services/gateway/ ./services/gateway/
 
@@ -12,5 +15,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run gateway
-ENTRYPOINT ["uv", "run","python", "-m", "services.gateway.app"]
+# Run gateway directly with Python (avoid uv wrapper at runtime)
+ENTRYPOINT ["python", "-m", "services.gateway.app"]

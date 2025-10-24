@@ -13,12 +13,16 @@ RUN apt-get update && apt-get install -y \
 COPY pyproject.toml uv.lock ./
 RUN pip install uv && uv sync --frozen
 
+# Ensure the project venv is used at runtime
+ENV VIRTUAL_ENV=/app/.venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
 # Copy common modules
 COPY services/common/ ./services/common/
 
 # Set Python path
 ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
 
 # Default command
 CMD ["uv", "run", "python", "-m", "services.common"]
-

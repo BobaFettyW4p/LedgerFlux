@@ -2,8 +2,11 @@
 ARG BASE_IMAGE=ledgerflux-common:latest
 FROM ${BASE_IMAGE}
 
+# Ensure latest shared code is present (override base copy in dev)
+COPY services/common/ ./services/common/
+
 # Copy normalizer service
 COPY services/normalizer/ ./services/normalizer/
 
-# Run normalizer (shard ID will be extracted from pod name)
-ENTRYPOINT ["uv", "run", "python", "-m", "services.normalizer.app"]
+# Run normalizer directly with Python (avoid uv wrapper at runtime)
+ENTRYPOINT ["python", "-m", "services.normalizer.app"]

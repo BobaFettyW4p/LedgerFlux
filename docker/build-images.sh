@@ -19,7 +19,9 @@ PUSH=${PUSH:-false}
 DOCKER_BUILDKIT=1
 
 # Resolve script directory for referencing Dockerfiles regardless of CWD
+# this is also needed to build images, otherwise the build can't find the pyproject.toml file, so uv conks out
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 img() {
   printf "%s%s:%s" "$REGISTRY" "$1" "$VERSION"
@@ -31,7 +33,7 @@ say "Building common base image ..."
 docker build \
   -f "$SCRIPT_DIR/Dockerfile.common" \
   -t "$(img ledgerflux-common)" \
-  $SCRIPT_DIR
+  "$ROOT_DIR"
 
 # Also tag as :latest if VERSION is not latest to satisfy FROM defaults locally
 if [[ "$VERSION" != "latest" ]]; then
@@ -46,32 +48,48 @@ docker build \
   -f "$SCRIPT_DIR/Dockerfile.ingestor" \
   $BASE_ARG \
   -t "$(img ledgerflux-ingestor)" \
-  $SCRIPT_DIR
+  "$ROOT_DIR"
+if [[ "$VERSION" != "latest" ]]; then
+  say "Tagging ingestor as :latest for local deploys"
+  docker tag "$(img ledgerflux-ingestor)" "${REGISTRY}ledgerflux-ingestor:latest"
+fi
 
 say "Building normalizer ..."
 docker build \
   -f "$SCRIPT_DIR/Dockerfile.normalizer" \
   $BASE_ARG \
   -t "$(img ledgerflux-normalizer)" \
-  $SCRIPT_DIR
+  "$ROOT_DIR"
 
 # Extra tag to match existing k8s manifests expecting :simple
 say "Tagging normalizer with :simple for k8s manifests"
 docker tag "$(img ledgerflux-normalizer)" "${REGISTRY}ledgerflux-normalizer:simple"
+if [[ "$VERSION" != "latest" ]]; then
+  say "Tagging normalizer as :latest for local deploys"
+  docker tag "$(img ledgerflux-normalizer)" "${REGISTRY}ledgerflux-normalizer:latest"
+fi
 
 say "Building snapshotter ..."
 docker build \
   -f "$SCRIPT_DIR/Dockerfile.snapshotter" \
   $BASE_ARG \
   -t "$(img ledgerflux-snapshotter)" \
-  $SCRIPT_DIR
+  "$ROOT_DIR"
+if [[ "$VERSION" != "latest" ]]; then
+  say "Tagging snapshotter as :latest for local deploys"
+  docker tag "$(img ledgerflux-snapshotter)" "${REGISTRY}ledgerflux-snapshotter:latest"
+fi
 
 say "Building gateway ..."
 docker build \
   -f "$SCRIPT_DIR/Dockerfile.gateway" \
   $BASE_ARG \
   -t "$(img ledgerflux-gateway)" \
-  $SCRIPT_DIR
+  "$ROOT_DIR"
+if [[ "$VERSION" != "latest" ]]; then
+  say "Tagging gateway as :latest for local deploys"
+  docker tag "$(img ledgerflux-gateway)" "${REGISTRY}ledgerflux-gateway:latest"
+fi
 
 if [[ "$PUSH" == "true" ]]; then
   if [[ -z "$REGISTRY" ]]; then
