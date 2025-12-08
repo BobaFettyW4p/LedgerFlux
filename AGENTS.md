@@ -18,7 +18,7 @@
 ├─ ARCHITECTURE.md
 ├─ AGENTS.md
 ├─ Makefile
-├─ docker-compose.yaml                # local dev: nats, redis, minio, services
+├─ docker-compose.yaml                # legacy; prefer Minikube-based local dev
 ├─ helm/                              # charts for each service
 ├─ k8s/                               # optional raw manifests
 ├─ services/
@@ -74,7 +74,7 @@
 
 **M1 – Scaffolding & Local Dev**
 
-* Initialize repo; Makefile tasks: `lint`, `typecheck`, `test`, `compose-up`, `compose-down`.
+* Initialize repo; Makefile tasks: `lint`, `typecheck`, `test`, `compose-up`, `compose-down` (Minikube + Skaffold).
 * `k8s/minikube` with NATS, Redis, MinIO, Prometheus, Grafana.
 * Common models + Broker abstraction with `NatsBroker` stub; basic FastAPI gateway skeleton.
 
@@ -152,14 +152,14 @@
 
 ## Local Dev How‑To
 
-* `make compose-up` → boots NATS, PostgreSQL, MinIO, Prometheus, Grafana.
+* `make compose-up` (Minikube + Skaffold) → boots NATS, PostgreSQL, MinIO, Prometheus, Grafana via Kubernetes.
 * `make run-ingestor` with `COINBASE_PRODUCTS` set.
 * `make watch-gateway` → simple CLI/web client to subscribe to products and observe snapshot+delta flow.
 
 ## Testing Strategy
 
 * Unit tests for models and brokers.
-* Integration tests bring up docker‑compose services, run ingestor + gateway, assert end‑to‑end delivery and backfill.
+* Integration tests bring up Minikube/Skaffold environment, run ingestor + gateway, assert end‑to‑end delivery and backfill.
 * CI uses recorded Coinbase WS/REST interactions to avoid live dependency.
 
 ## Deployment Notes

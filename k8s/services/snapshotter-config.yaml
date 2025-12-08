@@ -6,7 +6,8 @@ metadata:
 data:
   config.json: |
     {
-      "input_stream": "market_normalized",
+      "input_stream": "market.ticks",
+      "stream_name": "market_ticks",
       "num_shards": 4,
       "shard_id": "auto",
       "snapshot_period_ms": 60000

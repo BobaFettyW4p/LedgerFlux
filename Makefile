@@ -6,7 +6,8 @@ K8S_DIR ?= k8s
 
 .PHONY: help install lint typecheck test compose-up compose-down clean \
 	kind-up kind-load kind-deploy kind-down \
-	minikube-up minikube-load minikube-deploy minikube-down
+	minikube-up minikube-load minikube-deploy minikube-down \
+	skaffold-prep skaffold-run skaffold-dev
 
 # Default target
 help:
@@ -18,8 +19,8 @@ help:
 	@echo "  lint          - Run linting"
 	@echo "  typecheck     - Run type checking"
 	@echo "  test          - Run tests"
-	@echo "  compose-up    - Start infrastructure services"
-	@echo "  compose-down  - Stop infrastructure services"
+	@echo "  compose-up    - Start infrastructure via Minikube + Skaffold"
+	@echo "  compose-down  - Remove deployments and stop Minikube"
 	@echo "  clean         - Clean up temporary files"
 	@echo ""
 	@echo "Service targets:"
@@ -43,6 +44,9 @@ help:
 	@echo "  minikube-load   - Load local images into Minikube"
 	@echo "  minikube-deploy - Apply infra + services to Minikube and wait"
 	@echo "  minikube-down   - Stop and delete Minikube"
+	@echo "  skaffold-prep   - Build all images into Minikube Docker daemon (pre-skaffold)"
+	@echo "  skaffold-run    - Build and deploy with Skaffold (minikube profile)"
+	@echo "  skaffold-dev    - Live-reload with Skaffold dev loop (minikube profile)"
 	@echo ""
 
 # Install dependencies
@@ -64,17 +68,15 @@ test:
 
 # Infrastructure
 compose-up:
-	docker-compose -f docker/docker-compose.yaml up -d
-	@echo "✅ Infrastructure started!"
-	@echo "🌐 NATS: http://localhost:8222"
-	@echo "🔴 Redis: localhost:6379"
-	@echo "🗄️ PostgreSQL: localhost:5432 (db=ledgerflux, user=postgres)"
-	@echo "🪣 MinIO: http://localhost:9001 (admin/minioadmin)"
-	@echo "📊 Prometheus: http://localhost:9090"
-	@echo "📈 Grafana: http://localhost:3000 (admin/admin)"
+	@echo "🚜 Starting local stack via Minikube + Skaffold..."
+	$(MAKE) minikube-up
+	skaffold run -p minikube --status-check
+	@echo "✅ Infrastructure started on Minikube (namespace: ledgerflux)!"
 
 compose-down:
-	docker-compose -f docker/docker-compose.yaml down
+	@echo "🛑 Removing Skaffold deployments and stopping Minikube ..."
+	- skaffold delete -p minikube
+	$(MAKE) minikube-down
 
 # Clean up
 clean:
@@ -233,6 +235,19 @@ minikube-deploy:
 minikube-down:
 	@echo "🛑 Stopping Minikube ..."
 	minikube delete || true
+
+skaffold-prep:
+	@echo "🧰 Building images into Minikube Docker daemon (profile: minikube)..."
+	./scripts/skaffold-prep.sh
+
+skaffold-run:
+	@echo "🚀 Building and deploying via Skaffold (minikube profile)..."
+	skaffold run -p minikube --status-check
+
+skaffold-dev:
+	@echo "🔄 Starting Skaffold dev loop (minikube profile)..."
+	skaffold dev -p minikube --status-check
+
 deploy-local:
 	@echo "🚢 Building images and deploying to Kubernetes namespace '$(NAMESPACE)'..."
 	VERSION=$(VERSION) REGISTRY=$(REGISTRY) PUSH=$(PUSH) ./docker/build-images.sh

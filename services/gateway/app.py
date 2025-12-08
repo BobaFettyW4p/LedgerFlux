@@ -20,6 +20,12 @@ from services.common.config import load_nats_config
 from services.common.pg_store import PostgresSnapshotStore
 
 
+def _load_service_config() -> dict:
+    cfg_path = Path(__file__).with_name("config.json")
+    with cfg_path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 class RateLimiter:
     def __init__(self, max_rate: int, burst: int):
         self.max_rate = max_rate
@@ -69,7 +75,8 @@ class ClientConnection:
 class Gateway:
     def __init__(self, config: dict):
         self.config = config
-        self.input_stream = str(config.get('input_stream', 'market.normalized'))
+        self.input_stream = str(config.get('input_stream', 'market.ticks'))
+        self.stream_name = str(config.get('stream_name', 'market_ticks'))
         self.num_shards = int(config.get('num_shards', 4))
         self.port = int(config.get('port', 8000))
         self.max_msgs_per_sec = int(config.get('max_msgs_per_sec', 100))
@@ -77,7 +84,10 @@ class Gateway:
 
         self.app = FastAPI(title="Market Data Gateway")
         self.clients: Dict[WebSocket, ClientConnection] = {}
-        nats_config = load_nats_config(stream_name=self.input_stream)
+        nats_config = load_nats_config(
+            stream_name=self.stream_name,
+            subject_prefix=self.input_stream,
+        )
         self.broker = NATSStreamManager(nats_config)
         self.store = PostgresSnapshotStore()
         self.stats = {
@@ -100,11 +110,11 @@ class Gateway:
                     <p>WebSocket endpoint: <code>ws://localhost:{}/ws</code></p>
                     <h2>Protocol</h2>
                     <h3>Subscribe</h3>
-                    <pre>{"operation": "subscribe", "products": ["BTC-USD"], "want_snapshot": true}</pre>
+                    <pre>{"op": "subscribe", "products": ["BTC-USD"], "want_snapshot": true}</pre>
                     <h3>Unsubscribe</h3>
-                    <pre>{"operation": "unsubscribe", "products": ["BTC-USD"]}</pre>
+                    <pre>{"op": "unsubscribe", "products": ["BTC-USD"]}</pre>
                     <h3>Ping</h3>
-                    <pre>{"operation": "ping", "t": 1234567890}</pre>
+                    <pre>{"op": "ping", "t": 1234567890}</pre>
                 </body>
             </html>
             """.format(self.port))
@@ -133,6 +143,7 @@ class Gateway:
         await self.broker.connect()
         try:
             await self.store.connect()
+            await self.store.ensure_schema()
             print("Connected to Postgres snapshot store")
         except Exception as e:
             print(f"Warning: could not connect to Postgres snapshot store: {e}")
@@ -168,16 +179,16 @@ class Gateway:
     async def _handle_client_message(self, client: ClientConnection, data: str):
         try:
             message = json.loads(data)
-            operation = message.get('operation')
+            op = message.get('op') or message.get('operation')
             
-            if operation == 'subscribe':
+            if op == 'subscribe':
                 await self._handle_subscribe(client, message)
-            elif operation == 'unsubscribe':
+            elif op == 'unsubscribe':
                 await self._handle_unsubscribe(client, message)
-            elif operation == 'ping':
+            elif op == 'ping':
                 await self._handle_ping(client, message)
             else:
-                await client.send_error('INVALID_OPERATION', f'Unknown operation: {operation}')
+                await client.send_error('INVALID_OPERATION', f'Unknown operation: {op}')
                 
         except json.JSONDecodeError:
             await client.send_error('INVALID_JSON', 'Invalid JSON message')
@@ -240,7 +251,7 @@ class Gateway:
     async def _handle_ping(self, client: ClientConnection, message: dict):
         try:
             request = PingRequest.model_validate(message)
-            pong_msg = PongMessage(timestamp=request.timestamp)
+            pong_msg = PongMessage(t=request.t)
             await client.send_message(pong_msg.model_dump())
             
         except Exception as e:
@@ -275,6 +286,7 @@ class Gateway:
     async def stop(self):
         print("Stopping gateway...")
         await self.broker.disconnect()
+        await self.store.close()
         print("Gateway stopped")
 
 

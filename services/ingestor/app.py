@@ -2,11 +2,19 @@
 import asyncio
 import json
 import websockets
+from fastapi import FastAPI
+import uvicorn
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
 from services.common import Tick, TickFields, TradeData, create_tick, NATSStreamManager, NATSConfig, shard_product
 from services.common.config import load_nats_config
+
+
+def _load_service_config() -> Dict[str, Any]:
+    cfg_path = Path(__file__).with_name("config.json")
+    with cfg_path.open("r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def transform_coinbase_ticker(coinbase_data: dict) -> Tick:
@@ -48,10 +56,21 @@ class CoinbaseIngester:
         self.channels = [str(c).strip() for c in config.get('channels', ['ticker', 'heartbeat'])]
         self.num_shards = int(config.get('num_shards', 4))
         self.stream_name = str(config.get('stream_name', 'market_ticks'))
+        self.subject_prefix = str(config.get('subject_prefix', 'market.ticks'))
         self.ws_uri = str(config.get('ws_uri', 'wss://ws-feed.exchange.coinbase.com'))
+        self.health_port = int(config.get('health_port', 8080))
         
-        nats_config = load_nats_config(stream_name=self.stream_name)
+        nats_config = load_nats_config(
+            stream_name=self.stream_name,
+            subject_prefix=self.subject_prefix,
+        )
         self.broker = NATSStreamManager(nats_config)
+        self.health_app = self._build_health_app()
+        self._health_server: uvicorn.Server | None = None
+        self._health_task: asyncio.Task | None = None
+        self._ready = False
+        self._broker_ready = False
+        self._ws_connected = False
         
         self.stats = {
             'messages_received': 0,
@@ -66,8 +85,11 @@ class CoinbaseIngester:
         print(f"Channels: {', '.join(self.channels)}")
         print(f"NATS: configured via nats.config.json")
         print(f"Shards: {self.num_shards}")
+        await self._start_health_server()
         
         await self.broker.connect()
+        self._broker_ready = True
+        self._ready = True
         print("Connected to message broker")
         
         await self._websocket_loop()
@@ -84,6 +106,7 @@ class CoinbaseIngester:
         try:
             async with websockets.connect(self.ws_uri) as websocket:
                 print("WebSocket connected!")
+                self._ws_connected = True
                 
                 await websocket.send(subscribe_message)
                 print("Subscription sent")
@@ -103,6 +126,8 @@ class CoinbaseIngester:
                 except Exception as e:
                     print(f"WebSocket error: {e}")
                     self.stats['errors'] += 1
+                finally:
+                    self._ws_connected = False
         except asyncio.CancelledError:
             print("WebSocket connection cancelled")
             raise
@@ -168,11 +193,62 @@ class CoinbaseIngester:
     
     async def stop(self) -> None:
         print("Stopping ingestor...")
+        self._ready = False
         await self.broker.disconnect()
+        await self._stop_health_server()
         print("Ingestor stopped")
+
+    def _build_health_app(self) -> FastAPI:
+        app = FastAPI(title="LedgerFlux Ingestor Health")
+
+        @app.get("/health")
+        async def health():
+            return {
+                "status": "ok",
+                "messages_received": self.stats['messages_received'],
+                "messages_published": self.stats['messages_published'],
+                "errors": self.stats['errors'],
+            }
+
+        @app.get("/ready")
+        async def ready():
+            broker_status = "connected" if self._broker_ready else "disconnected"
+            ws_status = "connected" if self._ws_connected else "disconnected"
+            status = "ready" if self._ready else "not_ready"
+            return {
+                "status": status,
+                "broker": broker_status,
+                "websocket": ws_status,
+            }
+
+        return app
+
+    async def _start_health_server(self) -> None:
+        if self._health_task:
+            return
+
+        config = uvicorn.Config(
+            self.health_app,
+            host="0.0.0.0",
+            port=self.health_port,
+            log_level="info",
+            loop="asyncio",
+        )
+        self._health_server = uvicorn.Server(config)
+        self._health_task = asyncio.create_task(self._health_server.serve())
+        print(f"Health server listening on 0.0.0.0:{self.health_port}")
+
+    async def _stop_health_server(self) -> None:
+        if not self._health_server or not self._health_task:
+            return
+        self._health_server.should_exit = True
+        await self._health_task
+        self._health_server = None
+        self._health_task = None
 
 
 async def main() -> None:
+    config = _load_service_config()
     ingester = CoinbaseIngester(config)
     
     try:

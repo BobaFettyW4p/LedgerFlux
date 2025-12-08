@@ -26,11 +26,15 @@ class Snapshotter:
         self.shard_id = int(shard_id)
         self.num_shards = int(config.get('num_shards', 4))
         self.snapshot_period_ms = int(config.get('snapshot_period_ms', 60000))
-        self.input_stream = str(config.get('input_stream', 'market_normalized'))
+        self.input_stream = str(config.get('input_stream', 'market.ticks'))
+        self.stream_name = str(config.get('stream_name', 'market_ticks'))
         # Postgres connection is read from PG_* env vars or config 'pg_dsn'
         self.pg_dsn = config.get('pg_dsn')
         
-        nats_config = load_nats_config(stream_name=self.input_stream)
+        nats_config = load_nats_config(
+            stream_name=self.stream_name,
+            subject_prefix=self.input_stream,
+        )
         self.broker = NATSStreamManager(nats_config)
         self.store = PostgresSnapshotStore(self.pg_dsn)
         

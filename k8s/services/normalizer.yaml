@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: normalizer
-        image: ledgerflux-normalizer:simple
+        image: ledgerflux-normalizer:latest
         imagePullPolicy: Never  # For local development
         env:
         - name: LOG_LEVEL
