@@ -14,6 +14,7 @@ from typing import Any, Dict, Optional
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg.types.json import Json
 
 
 @dataclass
@@ -85,6 +86,16 @@ class PostgresSnapshotStore:
             await self.connect()
         assert self._conn is not None
 
+        # Ensure the state payload is JSON-serializable (e.g., convert datetimes)
+        serializable_state = dict(state)
+        last_update = serializable_state.get("last_update")
+        try:
+            from datetime import datetime
+            if isinstance(last_update, datetime):
+                serializable_state["last_update"] = last_update.isoformat()
+        except Exception:
+            pass
+
         upsert_stmt = """
         INSERT INTO snapshots (product, version, last_seq, ts_snapshot, state)
         VALUES (%s, %s, %s, %s, %s)
@@ -97,7 +108,8 @@ class PostgresSnapshotStore:
         """
         async with self._conn.cursor() as cur:
             await cur.execute(
-                upsert_stmt, (product, version, last_seq, ts_snapshot_ns, state)
+                upsert_stmt,
+                (product, version, last_seq, ts_snapshot_ns, Json(serializable_state)),
             )
 
     async def get_latest(self, product: str) -> Optional[SnapshotRecord]:
