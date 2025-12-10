@@ -20,6 +20,7 @@ DOCKER_BUILDKIT=1
 
 # Resolve script directory for referencing Dockerfiles regardless of CWD
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 img() {
   printf "%s%s:%s" "$REGISTRY" "$1" "$VERSION"
@@ -31,7 +32,7 @@ say "Building common base image ..."
 docker build \
   -f "$SCRIPT_DIR/Dockerfile.common" \
   -t "$(img ledgerflux-common)" \
-  $SCRIPT_DIR
+  "$REPO_ROOT"
 
 # Also tag as :latest if VERSION is not latest to satisfy FROM defaults locally
 if [[ "$VERSION" != "latest" ]]; then
@@ -46,14 +47,14 @@ docker build \
   -f "$SCRIPT_DIR/Dockerfile.ingestor" \
   $BASE_ARG \
   -t "$(img ledgerflux-ingestor)" \
-  $SCRIPT_DIR
+  "$REPO_ROOT"
 
 say "Building normalizer ..."
 docker build \
   -f "$SCRIPT_DIR/Dockerfile.normalizer" \
   $BASE_ARG \
   -t "$(img ledgerflux-normalizer)" \
-  $SCRIPT_DIR
+  "$REPO_ROOT"
 
 # Extra tag to match existing k8s manifests expecting :simple
 say "Tagging normalizer with :simple for k8s manifests"
@@ -64,14 +65,14 @@ docker build \
   -f "$SCRIPT_DIR/Dockerfile.snapshotter" \
   $BASE_ARG \
   -t "$(img ledgerflux-snapshotter)" \
-  $SCRIPT_DIR
+  "$REPO_ROOT"
 
 say "Building gateway ..."
 docker build \
   -f "$SCRIPT_DIR/Dockerfile.gateway" \
   $BASE_ARG \
   -t "$(img ledgerflux-gateway)" \
-  $SCRIPT_DIR
+  "$REPO_ROOT"
 
 if [[ "$PUSH" == "true" ]]; then
   if [[ -z "$REGISTRY" ]]; then

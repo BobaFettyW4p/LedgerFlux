@@ -3,5 +3,6 @@
   "channels": ["ticker", "heartbeat"],
   "ws_uri": "wss://ws-feed.exchange.coinbase.com",
   "num_shards": 4,
-  "stream_name": "market_ticks"
+  "stream_name": "market_ticks",
+  "subject_prefix": "market.ticks"
 }

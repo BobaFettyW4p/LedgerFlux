@@ -12,7 +12,9 @@ from .models import (
     SnapshotMessage, IncrMessage, RateLimitMessage, PongMessage, ErrorMessage,
     create_tick, create_snapshot
 )
-from .stream import NATSStreamManager, NATSConfig
+from .config import NATSConfig, load_nats_config
+from .stream import NATSStreamManager
+from .pg_store import PostgresSnapshotStore, SnapshotRecord
 from .util import (
     shard_index, stable_hash, shard_product, validate_product_list, format_quantity
 )
@@ -23,8 +25,11 @@ __all__ = [
     'SubscribeRequest', 'UnsubscribeRequest', 'PingRequest',
     'SnapshotMessage', 'IncrMessage', 'RateLimitMessage', 'PongMessage', 'ErrorMessage',
     'create_tick', 'create_snapshot',
+    'load_nats_config',
     # Stream
     'NATSStreamManager', 'NATSConfig',
+    # Storage
+    'PostgresSnapshotStore', 'SnapshotRecord',
     # Utils
     'shard_index', 'stable_hash', 'shard_product', 'validate_product_list', 'format_quantity'
 ]

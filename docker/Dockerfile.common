@@ -4,6 +4,10 @@ FROM python:3.12-slim
 # Set working directory
 WORKDIR /app
 
+# Avoid debconf prompting in non-interactive builds
+ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=${DEBIAN_FRONTEND}
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
@@ -21,4 +25,3 @@ ENV PYTHONPATH=/app
 
 # Default command
 CMD ["uv", "run", "python", "-m", "services.common"]
-

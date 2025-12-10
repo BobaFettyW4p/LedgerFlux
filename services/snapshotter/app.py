@@ -2,6 +2,8 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
+from fastapi import FastAPI
+import uvicorn
 from services.common import Tick, create_snapshot, NATSStreamManager, NATSConfig
 from services.common.pg_store import PostgresSnapshotStore
 from services.common.config import load_nats_config
@@ -26,11 +28,16 @@ class Snapshotter:
         self.shard_id = int(shard_id)
         self.num_shards = int(config.get('num_shards', 4))
         self.snapshot_period_ms = int(config.get('snapshot_period_ms', 60000))
-        self.input_stream = str(config.get('input_stream', 'market_normalized'))
+        self.input_stream = str(config.get('input_stream', 'market.ticks'))
+        self.stream_name = str(config.get('stream_name', 'market_ticks'))
         # Postgres connection is read from PG_* env vars or config 'pg_dsn'
         self.pg_dsn = config.get('pg_dsn')
+        self.health_port = int(config.get('health_port', 8082))
         
-        nats_config = load_nats_config(stream_name=self.input_stream)
+        nats_config = load_nats_config(
+            stream_name=self.stream_name,
+            subject_prefix=self.input_stream,
+        )
         self.broker = NATSStreamManager(nats_config)
         self.store = PostgresSnapshotStore(self.pg_dsn)
         
@@ -46,20 +53,32 @@ class Snapshotter:
         }
         
         self._store_ready = False
+        self._broker_ready = False
+        self._ready = False
+        self.health_app = self._build_health_app()
+        self._health_server: uvicorn.Server | None = None
+        self._health_task: asyncio.Task | None = None
     
     async def start(self):
         print(f"Starting Snapshotter (Shard {self.shard_id})")
         print(f"Input: {self.input_stream}.{self.shard_id}")
         print("Snapshot store: Postgres (table: snapshots)")
         print(f"Snapshot Period: {self.snapshot_period_ms}ms")
+
+        await self._start_health_server()
         
         await self.broker.connect()
+        self._broker_ready = True
         print("Connected to message broker")
         await self._init_store()
-        
+        self._ready = True
+
         snapshot_task = asyncio.create_task(self._periodic_snapshots())
         
         await self._process_messages()
+
+        # Keep the service alive by awaiting the snapshot task.
+        await snapshot_task
     
     async def _process_messages(self):
         print(f"Processing messages from shard {self.shard_id}...")
@@ -193,6 +212,51 @@ class Snapshotter:
         except Exception as e:
             print(f"Error writing snapshot to Postgres: {e}")
             self.stats['errors'] += 1
+
+    def _build_health_app(self) -> FastAPI:
+        app = FastAPI(title="LedgerFlux Snapshotter Health")
+
+        @app.get("/health")
+        async def health():
+            return {
+                "status": "ok",
+                "messages_processed": self.stats['messages_processed'],
+                "snapshots_created": self.stats['snapshots_created'],
+                "errors": self.stats['errors'],
+            }
+
+        @app.get("/ready")
+        async def ready():
+            status = "ready" if (self._ready and self._store_ready and self._broker_ready) else "not_ready"
+            return {
+                "status": status,
+                "broker": "connected" if self._broker_ready else "disconnected",
+                "store": "ready" if self._store_ready else "not_ready",
+            }
+
+        return app
+
+    async def _start_health_server(self) -> None:
+        if self._health_task:
+            return
+        config = uvicorn.Config(
+            self.health_app,
+            host="0.0.0.0",
+            port=self.health_port,
+            log_level="info",
+            loop="asyncio",
+        )
+        self._health_server = uvicorn.Server(config)
+        self._health_task = asyncio.create_task(self._health_server.serve())
+        print(f"Health server listening on 0.0.0.0:{self.health_port}")
+
+    async def _stop_health_server(self) -> None:
+        if not self._health_server or not self._health_task:
+            return
+        self._health_server.should_exit = True
+        await self._health_task
+        self._health_server = None
+        self._health_task = None
     
     async def _periodic_snapshots(self):
         while True:
@@ -211,6 +275,7 @@ class Snapshotter:
         print("Stopping snapshotter...")
         await self.broker.disconnect()
         await self.store.close()
+        await self._stop_health_server()
         print("Snapshotter stopped")
 
 

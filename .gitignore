@@ -53,6 +53,7 @@ Thumbs.db
 docker-compose.override.yml
 *.local.yml
 *.override.yml
+docker/skaffold
 
 # Helm charts (built dependencies and packaged charts)
 charts/*/charts/*.tgz

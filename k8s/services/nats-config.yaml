@@ -7,8 +7,9 @@ data:
   nats.config.json: |
     {
       "urls": "nats://nats:4222",
+      "stream_name": "market_ticks",
+      "subject_prefix": "market.ticks",
       "retention_minutes": 30,
       "max_age_seconds": 1800,
       "delete_existing": false
     }
-

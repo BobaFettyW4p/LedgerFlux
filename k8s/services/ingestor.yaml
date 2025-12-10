@@ -43,19 +43,15 @@ spec:
             memory: "512Mi"
             cpu: "500m"
         livenessProbe:
-          exec:
-            command:
-            - python
-            - -c
-            - "import requests; requests.get('http://localhost:8080/health')"
+          httpGet:
+            path: /health
+            port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
-          exec:
-            command:
-            - python
-            - -c
-            - "import requests; requests.get('http://localhost:8080/ready')"
+          httpGet:
+            path: /ready
+            port: 8080
           initialDelaySeconds: 5
           periodSeconds: 5
       volumes:

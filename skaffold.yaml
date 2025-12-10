@@ -1,0 +1,74 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: ledgerflux
+build:
+  local:
+    push: false
+    useDockerCLI: true
+    useBuildkit: true
+  tagPolicy:
+    envTemplate:
+      template: "{{.IMAGE_NAME}}:latest"
+  artifacts:
+    - image: ledgerflux-common
+      context: .
+      docker:
+        dockerfile: docker/Dockerfile.common
+    - image: ledgerflux-ingestor
+      context: .
+      requires:
+        - image: ledgerflux-common
+          alias: BASE_IMAGE
+      docker:
+        dockerfile: docker/Dockerfile.ingestor
+        buildArgs:
+          BASE_IMAGE: ledgerflux-common:latest
+    - image: ledgerflux-normalizer
+      context: .
+      requires:
+        - image: ledgerflux-common
+          alias: BASE_IMAGE
+      docker:
+        dockerfile: docker/Dockerfile.normalizer
+        buildArgs:
+          BASE_IMAGE: ledgerflux-common:latest
+    - image: ledgerflux-snapshotter
+      context: .
+      requires:
+        - image: ledgerflux-common
+          alias: BASE_IMAGE
+      docker:
+        dockerfile: docker/Dockerfile.snapshotter
+        buildArgs:
+          BASE_IMAGE: ledgerflux-common:latest
+    - image: ledgerflux-gateway
+      context: .
+      requires:
+        - image: ledgerflux-common
+          alias: BASE_IMAGE
+      docker:
+        dockerfile: docker/Dockerfile.gateway
+        buildArgs:
+          BASE_IMAGE: ledgerflux-common:latest
+deploy:
+  kubectl:
+    defaultNamespace: ledgerflux
+manifests:
+  rawYaml:
+    - k8s/namespace.yaml
+    - k8s/infrastructure/*
+    - k8s/services/*
+    - k8s/ingress/*
+profiles:
+  - name: minikube
+    activation:
+      - kubeContext: minikube
+    build:
+      local:
+        push: false
+        useDockerCLI: true
+        useBuildkit: false
+    deploy:
+      kubectl:
+        defaultNamespace: ledgerflux

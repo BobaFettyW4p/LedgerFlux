@@ -27,10 +27,14 @@ class Normalizer:
             shard_id = int(match.group(1)) if match else 0
         self.shard_id = int(shard_id)
         self.num_shards = int(config.get('num_shards', 4))
-        self.input_stream = str(config.get('input_stream', 'market_ticks'))
-        self.output_stream = str(config.get('output_stream', 'market_normalized'))
-        
-        nats_config = load_nats_config(stream_name=self.output_stream)
+        self.input_stream = str(config.get('input_stream', 'market.ticks'))
+        self.output_stream = str(config.get('output_stream', 'market.ticks'))
+        self.stream_name = str(config.get('stream_name', 'market_ticks'))
+
+        nats_config = load_nats_config(
+            stream_name=self.stream_name,
+            subject_prefix=self.output_stream,
+        )
         self.broker = NATSStreamManager(nats_config)
         
         self.stats = {

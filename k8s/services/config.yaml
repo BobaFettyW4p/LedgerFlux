@@ -6,9 +6,8 @@ metadata:
 data:
   # NATS JetStream configuration
   NATS_URLS: "nats://nats:4222"
-  
-  # Stream configuration
   JS_STREAM_NAME: "market_ticks"
+  JS_SUBJECT_PREFIX: "market.ticks"
   JS_RETENTION_MINUTES: "30"
   
   # Gateway configuration
