@@ -18,6 +18,7 @@ from .pg_store import PostgresSnapshotStore, SnapshotRecord
 from .util import (
     shard_index, stable_hash, shard_product, validate_product_list, format_quantity
 )
+from .metrics import get_metrics_response, set_build_info
 
 __all__ = [
     # Models
@@ -31,5 +32,7 @@ __all__ = [
     # Storage
     'PostgresSnapshotStore', 'SnapshotRecord',
     # Utils
-    'shard_index', 'stable_hash', 'shard_product', 'validate_product_list', 'format_quantity'
+    'shard_index', 'stable_hash', 'shard_product', 'validate_product_list', 'format_quantity',
+    # Metrics
+    'get_metrics_response', 'set_build_info'
 ]

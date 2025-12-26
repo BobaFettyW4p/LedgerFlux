@@ -1,0 +1,349 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "title": "LedgerFlux System Health",
+  "tags": [
+    "ledgerflux",
+    "prometheus",
+    "health"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 0,
+  "refresh": "5s",
+  "uid": "ledgerflux-system-health",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Active Gateway Clients",
+      "type": "stat",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": "prometheus",
+      "targets": [
+        {
+          "datasource": "prometheus",
+          "expr": "ledgerflux_gateway_clients_connected",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "none"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Coinbase WebSocket Status",
+      "type": "stat",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "ledgerflux_ingestor_websocket_connected",
+          "refId": "A",
+          "datasource": "prometheus"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "value": "0",
+              "text": "Disconnected"
+            },
+            {
+              "type": "value",
+              "value": "1",
+              "text": "Connected"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        }
+      },
+      "datasource": "prometheus"
+    },
+    {
+      "id": 3,
+      "title": "Tick Ingestion Rate",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "rate(ledgerflux_ingestor_ticks_received_total[1m])",
+          "legendFormat": "{{product}}",
+          "refId": "A",
+          "datasource": "prometheus"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "ticks/sec"
+        },
+        {
+          "format": "short"
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "legend": {
+        "show": true
+      },
+      "datasource": "prometheus"
+    },
+    {
+      "id": 4,
+      "title": "Messages Sent to Clients",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(ledgerflux_gateway_messages_sent_total[1m])",
+          "legendFormat": "{{product}} - {{message_type}}",
+          "refId": "A",
+          "datasource": "prometheus"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "messages/sec"
+        },
+        {
+          "format": "short"
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "legend": {
+        "show": true
+      },
+      "datasource": "prometheus"
+    },
+    {
+      "id": 5,
+      "title": "Rate Limiting",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(ledgerflux_gateway_rate_limits_total[5m])",
+          "legendFormat": "Rate Limits",
+          "refId": "A",
+          "datasource": "prometheus"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "rate limits/sec"
+        },
+        {
+          "format": "short"
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "legend": {
+        "show": true
+      },
+      "alert": {
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                1
+              ],
+              "type": "gt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": [
+                "A",
+                "5m",
+                "now"
+              ]
+            },
+            "reducer": {
+              "params": [],
+              "type": "avg"
+            },
+            "type": "query"
+          }
+        ],
+        "executionErrorState": "alerting",
+        "frequency": "1m",
+        "handler": 1,
+        "name": "High Rate Limiting",
+        "noDataState": "no_data",
+        "notifications": []
+      },
+      "datasource": "prometheus"
+    },
+    {
+      "id": 6,
+      "title": "Total Ticks by Product",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "sum by (product) (ledgerflux_ingestor_ticks_received_total)",
+          "legendFormat": "{{product}}",
+          "refId": "A",
+          "datasource": "prometheus"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "Total Ticks"
+        },
+        {
+          "format": "short"
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "legend": {
+        "show": true
+      },
+      "datasource": "prometheus"
+    },
+    {
+      "id": 7,
+      "title": "Active Subscriptions by Product",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "ledgerflux_gateway_active_subscriptions",
+          "legendFormat": "{{product}}",
+          "refId": "A",
+          "datasource": "prometheus"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "Subscriptions"
+        },
+        {
+          "format": "short"
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "legend": {
+        "show": true
+      },
+      "datasource": "prometheus"
+    }
+  ]
+}

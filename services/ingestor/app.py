@@ -3,12 +3,19 @@ import asyncio
 import json
 import websockets
 from fastapi import FastAPI
+from fastapi.responses import Response
 import uvicorn
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
 from services.common import Tick, TickFields, TradeData, create_tick, NATSStreamManager, NATSConfig, shard_product
 from services.common.config import load_nats_config
+from services.common import get_metrics_response, set_build_info
+from services.common.metrics import (
+    ingestor_ticks_received_total,
+    ingestor_ticks_published_total,
+    ingestor_websocket_connected
+)
 
 
 def _load_service_config() -> Dict[str, Any]:
@@ -71,7 +78,10 @@ class CoinbaseIngester:
         self._ready = False
         self._broker_ready = False
         self._ws_connected = False
-        
+
+        # Set build info for metrics
+        set_build_info('ingestor', version='0.1.0')
+
         self.stats = {
             'messages_received': 0,
             'messages_published': 0,
@@ -107,6 +117,7 @@ class CoinbaseIngester:
             async with websockets.connect(self.ws_uri) as websocket:
                 print("WebSocket connected!")
                 self._ws_connected = True
+                ingestor_websocket_connected.set(1)
                 
                 await websocket.send(subscribe_message)
                 print("Subscription sent")
@@ -128,6 +139,7 @@ class CoinbaseIngester:
                     self.stats['errors'] += 1
                 finally:
                     self._ws_connected = False
+                    ingestor_websocket_connected.set(0)
         except asyncio.CancelledError:
             print("WebSocket connection cancelled")
             raise
@@ -162,19 +174,25 @@ class CoinbaseIngester:
     async def _process_ticker(self, data: dict) -> None:
         try:
             tick = transform_coinbase_ticker(data)
-            
+
+            # Track tick received
+            ingestor_ticks_received_total.labels(product=tick.product).inc()
+
             shard = shard_product(tick.product, self.num_shards)
-            
+
             try:
                 await self.broker.publish_tick(tick, shard)
-                
+
                 self.stats['messages_published'] += 1
                 self.stats['products'][tick.product] += 1
-                
+
+                # Track tick published
+                ingestor_ticks_published_total.labels(product=tick.product, shard=str(shard)).inc()
+
                 last_trade_price = tick.fields.last_trade.px if tick.fields.last_trade else 0.0
                 bid_price = tick.fields.best_bid.px if tick.fields.best_bid else 0.0
                 ask_price = tick.fields.best_ask.px if tick.fields.best_ask else 0.0
-                
+
                 print(f"{tick.product}: ${last_trade_price:,.2f} "
                       f"(bid: ${bid_price:,.2f}, ask: ${ask_price:,.2f}) "
                       f"shard: {shard}")
@@ -220,6 +238,11 @@ class CoinbaseIngester:
                 "broker": broker_status,
                 "websocket": ws_status,
             }
+
+        @app.get("/metrics")
+        async def metrics():
+            content, media_type = get_metrics_response()
+            return Response(content=content, media_type=media_type)
 
         return app
 

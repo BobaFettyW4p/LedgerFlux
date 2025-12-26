@@ -94,21 +94,24 @@ class Snapshotter:
     async def _process_tick(self, tick: Tick):
         try:
             self.stats['messages_processed'] += 1
-            
+
             await self._update_product_state(tick)
-            
+
+            # Write tick to historical database
+            await self._write_tick_history(tick)
+
             if self._should_create_snapshot(tick.product):
                 await self._create_snapshot(tick.product)
-            
+
             print(f"{tick.product}: ${tick.fields.last_trade.px:,.2f} "
                   f"seq: {tick.seq} (state updated)")
-            
+
             # Print stats periodically
             if self.stats['messages_processed'] % 100 == 0:
                 print(f"\nStats: processed={self.stats['messages_processed']}, "
                       f"states={self.stats['states_updated']}, "
                       f"snapshots={self.stats['snapshots_created']}\n")
-                
+
         except Exception as e:
             print(f"Error processing tick: {e}")
             self.stats['errors'] += 1
@@ -185,7 +188,47 @@ class Snapshotter:
         self.stats['snapshots_created'] += 1
         
         print(f"📸 Created snapshot for {product} (seq: {snapshot.seq})")
-    
+
+    async def _write_tick_history(self, tick: Tick):
+        """Write tick to historical database for charting and analysis."""
+        if not self._store_ready or not self.store._conn:
+            return
+
+        try:
+            # Extract price data from tick fields
+            price = tick.fields.last_trade.px if tick.fields.last_trade else None
+            bid = tick.fields.best_bid.px if tick.fields.best_bid else None
+            ask = tick.fields.best_ask.px if tick.fields.best_ask else None
+            volume = tick.fields.last_trade.qty if tick.fields.last_trade else None
+
+            # Insert into tick_history table
+            query = """
+                INSERT INTO tick_history
+                    (product, sequence, price, bid, ask, volume, ts_event, ts_ingest)
+                VALUES
+                    (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (product, sequence, timestamp) DO NOTHING
+            """
+
+            async with self.store._conn.cursor() as cur:
+                await cur.execute(
+                    query,
+                    (
+                        tick.product,
+                        tick.seq,
+                        price,
+                        bid,
+                        ask,
+                        volume,
+                        tick.ts_event,
+                        tick.ts_ingest
+                    )
+                )
+
+        except Exception as e:
+            # Don't let history writing failures break the snapshotter
+            print(f"Warning: Failed to write tick history for {tick.product}: {e}")
+
     async def _init_store(self) -> None:
         try:
             await self.store.ensure_schema()
