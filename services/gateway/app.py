@@ -7,17 +7,26 @@ from typing import Dict, Set
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 import uvicorn
 
 from services.common import (
     SubscribeRequest, UnsubscribeRequest, PingRequest,
     SnapshotMessage, IncrMessage, RateLimitMessage, PongMessage, ErrorMessage,
-    Tick, Snapshot, NATSStreamManager, NATSConfig
+    Tick, Snapshot, NATSStreamManager, NATSConfig,
+    get_metrics_response, set_build_info
 )
 from services.common import validate_product_list
 from services.common.config import load_nats_config
 from services.common.pg_store import PostgresSnapshotStore
+from services.common.metrics import (
+    gateway_clients_connected,
+    gateway_clients_total,
+    gateway_messages_sent_total,
+    gateway_rate_limits_total,
+    gateway_subscriptions_total,
+    gateway_active_subscriptions
+)
 
 
 def _load_service_config() -> dict:
@@ -96,6 +105,10 @@ class Gateway:
             'rate_limits': 0,
             'errors': 0
         }
+
+        # Set build info for metrics
+        set_build_info('gateway', version='0.1.0')
+
         self._setup_routes()
     
     def _setup_routes(self):
@@ -129,7 +142,12 @@ class Gateway:
             if self.broker and self.broker.nats_connection:
                 return {"status": "ready", "broker": "connected"}
             return {"status": "not_ready", "broker": "disconnected"}
-        
+
+        @self.app.get("/metrics")
+        async def metrics():
+            content, media_type = get_metrics_response()
+            return Response(content=content, media_type=media_type)
+
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
             await self._handle_websocket(websocket)
@@ -153,28 +171,35 @@ class Gateway:
     
     async def _handle_websocket(self, websocket: WebSocket):
         await websocket.accept()
-        
+
         rate_limiter = RateLimiter(self.max_msgs_per_sec, self.burst)
         client = ClientConnection(websocket, rate_limiter)
         self.clients[websocket] = client
-        
+
         self.stats['clients_connected'] += 1
+        gateway_clients_connected.inc()
+        gateway_clients_total.labels(status='connected').inc()
         print(f"Client connected (total: {len(self.clients)})")
-        
+
         try:
             while True:
                 data = await websocket.receive_text()
                 await self._handle_client_message(client, data)
-                
+
         except WebSocketDisconnect:
             print(f"Client disconnected")
+            gateway_clients_total.labels(status='disconnected').inc()
         except Exception as e:
             print(f"WebSocket error: {e}")
             self.stats['errors'] += 1
         finally:
             if websocket in self.clients:
+                # Unsubscribe from all products
+                for product in list(client.subscribed_products):
+                    gateway_active_subscriptions.labels(product=product).dec()
                 del self.clients[websocket]
             self.stats['clients_connected'] -= 1
+            gateway_clients_connected.dec()
     
     async def _handle_client_message(self, client: ClientConnection, data: str):
         try:
@@ -200,9 +225,14 @@ class Gateway:
         try:
             request = SubscribeRequest.model_validate(message)
             products = validate_product_list(request.products)
-            
+
             client.subscribed_products.update(products)
-            
+
+            # Track subscriptions in metrics
+            for product in products:
+                gateway_subscriptions_total.labels(product=product, operation='subscribe').inc()
+                gateway_active_subscriptions.labels(product=product).inc()
+
             if request.want_snapshot:
                 for product in products:
                     sent = False
@@ -217,6 +247,7 @@ class Gateway:
                             )
                             snapshot_msg = SnapshotMessage(data=snapshot)
                             await client.send_message(snapshot_msg.model_dump())
+                            gateway_messages_sent_total.labels(product=product, message_type='snapshot').inc()
                             sent = True
                     except Exception as e:
                         print(f"Error fetching snapshot from Postgres for {product}: {e}")
@@ -230,9 +261,10 @@ class Gateway:
                         )
                         snapshot_msg = SnapshotMessage(data=snapshot)
                         await client.send_message(snapshot_msg.model_dump())
-            
+                        gateway_messages_sent_total.labels(product=product, message_type='snapshot').inc()
+
             print(f"Client subscribed to: {products}")
-            
+
         except Exception as e:
             await client.send_error('SUBSCRIBE_ERROR', str(e))
     
@@ -240,11 +272,16 @@ class Gateway:
         try:
             request = UnsubscribeRequest.model_validate(message)
             products = validate_product_list(request.products)
-            
+
             client.subscribed_products.difference_update(products)
-            
-            print(f"📡 Client unsubscribed from: {products}")
-            
+
+            # Track unsubscriptions in metrics
+            for product in products:
+                gateway_subscriptions_total.labels(product=product, operation='unsubscribe').inc()
+                gateway_active_subscriptions.labels(product=product).dec()
+
+            print(f"Client unsubscribed from: {products}")
+
         except Exception as e:
             await client.send_error('UNSUBSCRIBE_ERROR', str(e))
     
@@ -271,17 +308,19 @@ class Gateway:
     async def _broadcast_tick(self, tick: Tick):
         if not self.clients:
             return
-        
+
         incr_msg = IncrMessage(data=tick)
         message = incr_msg.model_dump()
-        
+
         for client in self.clients.values():
             if tick.product in client.subscribed_products:
                 success = await client.send_message(message)
                 if success:
                     self.stats['messages_sent'] += 1
+                    gateway_messages_sent_total.labels(product=tick.product, message_type='incr').inc()
                 else:
                     self.stats['rate_limits'] += 1
+                    gateway_rate_limits_total.inc()
     
     async def stop(self):
         print("Stopping gateway...")

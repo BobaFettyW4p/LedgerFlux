@@ -55,8 +55,8 @@ class NATSStreamManager:
         stream_config: Dict[str, Any] = {
             "name": self.config.stream_name,
             "subjects": [f"{self.config.subject_prefix}.*"],
-            "retention": jsapi.RetentionPolicy.LIMITS.value,
-            "storage": jsapi.StorageType.FILE.value,
+            "retention": jsapi.RetentionPolicy.LIMITS,
+            "storage": jsapi.StorageType.FILE,
             "max_msgs": 1_000_000,
             "max_bytes": 1_024 * 1_024 * 1_024,
             "num_replicas": 1,

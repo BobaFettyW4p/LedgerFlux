@@ -1,0 +1,322 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "title": "LedgerFlux Market Data",
+  "tags": [
+    "ledgerflux",
+    "postgresql",
+    "market-data"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 0,
+  "refresh": "5s",
+  "uid": "ledgerflux-market-data",
+  "panels": [
+    {
+      "id": 1,
+      "title": "BTC-USD Price (Last Hour)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": "postgres",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "SELECT\n  timestamp as time,\n  price\nFROM tick_history\nWHERE\n  product = 'BTC-USD'\n  AND price IS NOT NULL\n  AND timestamp > NOW() - INTERVAL '1 hour'\nORDER BY timestamp",
+          "refId": "A",
+          "datasource": "postgres"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "currencyUSD",
+          "decimals": 2
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "ETH-USD Price (Last Hour)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": "postgres",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "SELECT\n  timestamp as time,\n  price\nFROM tick_history\nWHERE\n  product = 'ETH-USD'\n  AND price IS NOT NULL\n  AND timestamp > NOW() - INTERVAL '1 hour'\nORDER BY timestamp",
+          "refId": "A",
+          "datasource": "postgres"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "unit": "currencyUSD",
+          "decimals": 2
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "BTC-USD Bid/Ask Spread",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "datasource": "postgres",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "SELECT\n  timestamp as time,\n  price as \"Price\",\n  bid as \"Bid\",\n  ask as \"Ask\"\nFROM tick_history\nWHERE\n  product = 'BTC-USD'\n  AND timestamp > NOW() - INTERVAL '1 hour'\nORDER BY timestamp",
+          "refId": "A",
+          "datasource": "postgres"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never"
+          },
+          "unit": "currencyUSD",
+          "decimals": 2
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Trading Volume",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "datasource": "postgres",
+      "targets": [
+        {
+          "format": "time_series",
+          "rawSql": "SELECT\n  timestamp as time,\n  product as metric,\n  volume\nFROM tick_history\nWHERE\n  volume IS NOT NULL\n  AND timestamp > NOW() - INTERVAL '1 hour'\nORDER BY timestamp",
+          "refId": "A",
+          "datasource": "postgres"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "barAlignment": 0,
+            "fillOpacity": 50,
+            "showPoints": "never"
+          },
+          "unit": "short",
+          "decimals": 4
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Price Change (Last 24 Hours)",
+      "type": "stat",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 20
+      },
+      "datasource": "postgres",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "WITH first_last AS (\n  SELECT\n    product,\n    (ARRAY_AGG(price ORDER BY timestamp ASC))[1] as first_price,\n    (ARRAY_AGG(price ORDER BY timestamp DESC))[1] as last_price\n  FROM tick_history\n  WHERE\n    timestamp > NOW() - INTERVAL '24 hours'\n    AND price IS NOT NULL\n  GROUP BY product\n)\nSELECT\n  product as metric,\n  NOW() as time,\n  ((last_price - first_price) / first_price * 100) as value\nFROM first_last",
+          "refId": "A",
+          "datasource": "postgres"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": -1
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 6,
+      "title": "Tick Count by Product (Last Hour)",
+      "type": "bargauge",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 20
+      },
+      "datasource": "postgres",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT\n  product as metric,\n  NOW() as time,\n  COUNT(*) as value\nFROM tick_history\nWHERE timestamp > NOW() - INTERVAL '1 hour'\nGROUP BY product\nORDER BY value DESC",
+          "refId": "A",
+          "datasource": "postgres"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      }
+    },
+    {
+      "id": 7,
+      "title": "Average Price by Product (Last Hour)",
+      "type": "table",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "datasource": "postgres",
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT\n  product as \"Product\",\n  AVG(price) as \"Avg Price\",\n  MIN(price) as \"Min Price\",\n  MAX(price) as \"Max Price\",\n  COUNT(*) as \"Ticks\"\nFROM tick_history\nWHERE\n  timestamp > NOW() - INTERVAL '1 hour'\n  AND price IS NOT NULL\nGROUP BY product\nORDER BY product",
+          "refId": "A",
+          "datasource": "postgres"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Avg Price"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Min Price"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Max Price"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
