@@ -1,5 +1,5 @@
 {
-  "urls": "nats://localhost:4222",
+  "urls": "nats://nats:4222",
   "stream_name": "market_ticks",
   "subject_prefix": "market.ticks",
   "retention_minutes": 30,

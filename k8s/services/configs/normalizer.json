@@ -3,5 +3,5 @@
   "output_stream": "market.ticks",
   "stream_name": "market_ticks",
   "num_shards": 4,
-  "shard_id": 0
+  "shard_id": "auto"
 }

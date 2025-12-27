@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ledgerflux
+
+resources:
+  - gateway.yaml
+  - ingestor.yaml
+  - normalizer.yaml
+  - snapshotter.yaml
+
+configMapGenerator:
+  # Gateway configuration
+  - name: ledgerflux-gateway-config
+    files:
+      - config.json=configs/gateway.json
+    options:
+      disableNameSuffixHash: true
+
+  # Ingestor configuration
+  - name: ledgerflux-ingestor-config
+    files:
+      - config.json=configs/ingestor.json
+    options:
+      disableNameSuffixHash: true
+
+  # Normalizer configuration
+  - name: ledgerflux-normalizer-config
+    files:
+      - config.json=configs/normalizer.json
+    options:
+      disableNameSuffixHash: true
+
+  # Snapshotter configuration
+  - name: ledgerflux-snapshotter-config
+    files:
+      - config.json=configs/snapshotter.json
+    options:
+      disableNameSuffixHash: true
+
+  # NATS configuration (shared by all services)
+  - name: ledgerflux-nats-config
+    files:
+      - nats.config.json=configs/nats.json
+    options:
+      disableNameSuffixHash: true
