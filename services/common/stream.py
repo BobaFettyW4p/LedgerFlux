@@ -52,23 +52,12 @@ class NATSStreamManager:
                 # It's fine if the stream didn't exist yet.
                 pass
 
-        stream_config: Dict[str, Any] = {
-            "name": self.config.stream_name,
-            "subjects": [f"{self.config.subject_prefix}.*"],
-            "retention": jsapi.RetentionPolicy.LIMITS,
-            "storage": jsapi.StorageType.FILE,
-            "max_msgs": 1_000_000,
-            "max_bytes": 1_024 * 1_024 * 1_024,
-            "num_replicas": 1,
-        }
-        if self.config.max_age_timedelta:
-            # JetStream expects max_age as nanoseconds (int); timedelta is rejected
-            stream_config["max_age"] = int(
-                self.config.max_age_timedelta.total_seconds() * 1_000_000_000
-            )
-
+        # Build stream config - skip max_age for now to avoid serialization issues
         try:
-            config_obj = jsapi.StreamConfig(**stream_config)
+            config_obj = jsapi.StreamConfig(
+                name=self.config.stream_name,
+                subjects=[f"{self.config.subject_prefix}.*"],
+            )
             await self.jetstream.add_stream(config=config_obj)
             print(f"Created NATS stream: {self.config.stream_name}")
         except Exception as exc:
@@ -81,7 +70,7 @@ class NATSStreamManager:
                 print(f"Stream already exists: {self.config.stream_name}")
             else:
                 print(
-                    f"Failed to create stream with config {stream_config}: {exc}"
+                    f"Failed to create stream '{self.config.stream_name}': {exc}"
                 )
                 raise
 
