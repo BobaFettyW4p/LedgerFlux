@@ -21,6 +21,8 @@ help:
 	@echo "  test          - Run tests"
 	@echo "  compose-up    - Start infrastructure via Minikube + Skaffold"
 	@echo "  compose-down  - Remove deployments and stop Minikube"
+	@echo "  status        - Show status of all pods"
+	@echo "  logs          - Tail logs from all services"
 	@echo "  clean         - Clean up temporary files"
 	@echo ""
 	@echo "Service targets:"
@@ -68,15 +70,23 @@ test:
 
 # Infrastructure
 compose-up:
-	@echo "🚜 Starting local stack via Minikube + Skaffold..."
+	@echo "Starting local stack via Minikube + Skaffold..."
 	$(MAKE) minikube-up
-	skaffold run -p minikube --status-check
+	skaffold run -p minikube --status-check --cache-artifacts=false
 	@echo "✅ Infrastructure started on Minikube (namespace: ledgerflux)!"
 
 compose-down:
-	@echo "🛑 Removing Skaffold deployments and stopping Minikube ..."
+	@echo "Removing Skaffold deployments and stopping Minikube ..."
 	- skaffold delete -p minikube
 	$(MAKE) minikube-down
+
+status:
+	@echo "Checking pod status in ledgerflux namespace..."
+	@kubectl get pods -n ledgerflux
+
+logs:
+	@echo "Tailing logs from all services..."
+	@skaffold logs --tail -p minikube
 
 # Clean up
 clean:
@@ -102,27 +112,27 @@ test-client:
 
 # Kubernetes testing
 k8s-setup:
-	@echo "🚀 Setting up Kubernetes test environment..."
+	@echo "Setting up Kubernetes test environment..."
 	./scripts/test-k8s.sh setup
 
 k8s-test:
-	@echo "🧪 Running Kubernetes integration tests..."
+	@echo "Running Kubernetes integration tests..."
 	./scripts/test-k8s.sh test
 
 k8s-load:
-	@echo "🚀 Running Kubernetes load tests..."
+	@echo "Running Kubernetes load tests..."
 	./scripts/test-k8s.sh load
 
 k8s-metrics:
-	@echo "📊 Checking Kubernetes metrics..."
+	@echo "Checking Kubernetes metrics..."
 	./scripts/test-k8s.sh metrics
 
 k8s-status:
-	@echo "📋 Showing Kubernetes system status..."
+	@echo "Showing Kubernetes system status..."
 	./scripts/test-k8s.sh status
 
 k8s-cleanup:
-	@echo "🧹 Cleaning up Kubernetes test environment..."
+	@echo "Cleaning up Kubernetes test environment..."
 	./scripts/test-k8s.sh cleanup
 
 k8s-all: k8s-setup k8s-test k8s-metrics
@@ -130,7 +140,7 @@ k8s-all: k8s-setup k8s-test k8s-metrics
 
 # Development helpers
 dev-setup: install compose-up
-	@echo "🚀 Development environment ready!"
+	@echo "Development environment ready!"
 	@echo "Run 'make run-ingestor' in one terminal"
 	@echo "Run 'make run-normalizer' in another terminal"
 	@echo "Run 'make run-snapshotter' in another terminal"
@@ -151,78 +161,33 @@ docker-build-all:
 
 .PHONY: deploy-local
 
-# Kind helpers
-KIND_CLUSTER ?= ledgerflux
-KIND_IMAGES := ledgerflux-common:latest ledgerflux-ingestor:latest ledgerflux-normalizer:latest ledgerflux-snapshotter:latest ledgerflux-gateway:latest
-
-kind-up:
-	@echo "🧱 Creating Kind cluster '$(KIND_CLUSTER)'..."
-	kind create cluster --name $(KIND_CLUSTER) || true
-	@echo "🌐 Installing ingress-nginx in Kind..."
-	kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-	@echo "⏳ Waiting for ingress-nginx controller..."
-	kubectl wait --namespace ingress-nginx \
-	  --for=condition=ready pod \
-	  --selector=app.kubernetes.io/component=controller \
-	  --timeout=180s
-	@echo "✅ Kind is ready. Add to /etc/hosts: 127.0.0.1 ledgerflux.local nats.local minio.local"
-
-kind-load:
-	@echo "📦 Building images ..."
-	DOCKER_BUILDKIT=1 ./docker/build-images.sh
-	@echo "📤 Loading images into Kind ..."
-	@for img in $(KIND_IMAGES); do \
-	  echo " - $$img"; \
-	  kind load docker-image $$img --name $(KIND_CLUSTER); \
-	done
-
-kind-deploy:
-	@echo "🚀 Deploying to Kind ..."
-	kubectl apply -f k8s/namespace.yaml
-	kubectl apply -f k8s/infrastructure/
-	kubectl apply -f k8s/services/
-	kubectl apply -f k8s/ingress/
-	@echo "⏳ Waiting for deployments ..."
-	kubectl wait --for=condition=available --timeout=300s deploy/nats -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/postgres -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/minio -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/ingestor -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s statefulset/normalizer -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/snapshotter -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/gateway -n ledgerflux
-	@echo "✅ Deployed. Visit http://ledgerflux.local/"
-
-kind-down:
-	@echo "🗑️ Deleting Kind cluster '$(KIND_CLUSTER)'..."
-	kind delete cluster --name $(KIND_CLUSTER) || true
-
 # Minikube helpers
-MINIKUBE_CPUS ?= 2
-MINIKUBE_MEM ?= 4096
+MINIKUBE_CPUS ?= 4
+MINIKUBE_MEM ?= 8192
 
 minikube-up:
-	@echo "🚜 Starting Minikube ..."
+	@echo "Starting Minikube ..."
 	minikube start --cpus=$(MINIKUBE_CPUS) --memory=$(MINIKUBE_MEM)
-	@echo "🌐 Enabling ingress ..."
+	@echo "Enabling ingress ..."
 	minikube addons enable ingress
-	@echo "ℹ️  Add to /etc/hosts: $$(minikube ip) ledgerflux.local nats.local minio.local"
+	@echo "Add to /etc/hosts: $$(minikube ip) ledgerflux.local nats.local minio.local"
 
 minikube-load:
-	@echo "📦 Building images ..."
+	@echo "Building images ..."
 	DOCKER_BUILDKIT=1 ./docker/build-images.sh
-	@echo "📤 Loading images into Minikube ..."
+	@echo "Loading images into Minikube ..."
 	@for img in $(KIND_IMAGES); do \
 	  echo " - $$img"; \
 	  minikube image load $$img; \
 	done
 
 minikube-deploy:
-	@echo "🚀 Deploying to Minikube ..."
+	@echo "Deploying to Minikube ..."
 	kubectl apply -f k8s/namespace.yaml
 	kubectl apply -f k8s/infrastructure/
 	kubectl apply -f k8s/services/
 	kubectl apply -f k8s/ingress/
-	@echo "⏳ Waiting for deployments ..."
+	@echo "Waiting for deployments ..."
 	kubectl wait --for=condition=available --timeout=300s deploy/nats -n ledgerflux
 	kubectl wait --for=condition=available --timeout=300s deploy/postgres -n ledgerflux
 	kubectl wait --for=condition=available --timeout=300s deploy/minio -n ledgerflux
@@ -230,23 +195,23 @@ minikube-deploy:
 	kubectl wait --for=condition=available --timeout=300s statefulset/normalizer -n ledgerflux
 	kubectl wait --for=condition=available --timeout=300s deploy/snapshotter -n ledgerflux
 	kubectl wait --for=condition=available --timeout=300s deploy/gateway -n ledgerflux
-	@echo "✅ Deployed. Visit http://$$(minikube ip)/ (or hosts entry for ledgerflux.local)."
+	@echo "Deployed. Visit http://$$(minikube ip)/ (or hosts entry for ledgerflux.local)."
 
 minikube-down:
-	@echo "🛑 Stopping Minikube ..."
+	@echo "Stopping Minikube ..."
 	minikube delete || true
 
 skaffold-prep:
-	@echo "🧰 Building images into Minikube Docker daemon (profile: minikube)..."
+	@echo "Building images into Minikube Docker daemon (profile: minikube)..."
 	./scripts/skaffold-prep.sh
 
 skaffold-run:
-	@echo "🚀 Building and deploying via Skaffold (minikube profile)..."
-	skaffold run -p minikube --status-check
+	@echo "Building and deploying via Skaffold (minikube profile)..."
+	skaffold run -p minikube --status-check --cache-artifacts=false
 
 skaffold-dev:
 	@echo "🔄 Starting Skaffold dev loop (minikube profile)..."
-	skaffold dev -p minikube --status-check
+	skaffold dev -p minikube --status-check --cache-artifacts=false
 
 deploy-local:
 	@echo "🚢 Building images and deploying to Kubernetes namespace '$(NAMESPACE)'..."

@@ -39,6 +39,10 @@ spec:
               key: PG_PASSWORD
         - name: POSTGRES_DB
           value: ledgerflux
+        volumeMounts:
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+          readOnly: true
         resources:
           requests:
             memory: "256Mi"
@@ -56,6 +60,10 @@ spec:
             port: 5432
           initialDelaySeconds: 5
           periodSeconds: 5
+      volumes:
+      - name: init-script
+        configMap:
+          name: postgres-init
 
 ---
 apiVersion: v1
