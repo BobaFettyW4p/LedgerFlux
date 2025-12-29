@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-cleanup
+  namespace: ledgerflux
+spec:
+  schedule: "*/30 * * * *"  # Every 30 minutes
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: cleanup
+            image: postgres:15
+            env:
+            - name: PGPASSWORD
+              value: postgres
+            command:
+            - sh
+            - -c
+            - |
+              echo "Cleaning up tick_history older than 1 hour..."
+              psql -h postgres -U postgres -d ledgerflux -c "DELETE FROM tick_history WHERE timestamp < NOW() - INTERVAL '1 hour';"
+              echo "Vacuuming database..."
+              psql -h postgres -U postgres -d ledgerflux -c "VACUUM ANALYZE tick_history;"
+              echo "Cleanup complete"

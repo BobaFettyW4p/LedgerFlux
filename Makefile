@@ -4,10 +4,10 @@
 NAMESPACE ?= ledgerflux
 K8S_DIR ?= k8s
 
-.PHONY: help install lint typecheck test compose-up compose-down clean \
+.PHONY: help install lint typecheck test up down clean \
 	kind-up kind-load kind-deploy kind-down \
 	minikube-up minikube-load minikube-deploy minikube-down \
-	skaffold-prep skaffold-run skaffold-dev
+	skaffold-prep skaffold-run skaffold-dev grafana prometheus gateway-ui
 
 # Default target
 help:
@@ -19,11 +19,16 @@ help:
 	@echo "  lint          - Run linting"
 	@echo "  typecheck     - Run type checking"
 	@echo "  test          - Run tests"
-	@echo "  compose-up    - Start infrastructure via Minikube + Skaffold"
-	@echo "  compose-down  - Remove deployments and stop Minikube"
+	@echo "  up            - Start local Kubernetes stack (Minikube + Skaffold)"
+	@echo "  down          - Teardown Minikube cluster and all deployments"
 	@echo "  status        - Show status of all pods"
 	@echo "  logs          - Tail logs from all services"
 	@echo "  clean         - Clean up temporary files"
+	@echo ""
+	@echo "Access UI (opens in browser):"
+	@echo "  grafana       - Open Grafana dashboard (monitoring & market data)"
+	@echo "  prometheus    - Open Prometheus metrics"
+	@echo "  gateway-ui    - Open Gateway WebSocket UI"
 	@echo ""
 	@echo "Service targets:"
 	@echo "  run-ingestor     - Run the ingester service"
@@ -69,16 +74,17 @@ test:
 	uv run pytest tests/ -v
 
 # Infrastructure
-compose-up:
-	@echo "Starting local stack via Minikube + Skaffold..."
+up:
+	@echo "Starting local Kubernetes stack (Minikube + Skaffold)..."
 	$(MAKE) minikube-up
 	skaffold run -p minikube --status-check --cache-artifacts=false
-	@echo "✅ Infrastructure started on Minikube (namespace: ledgerflux)!"
+	@echo "Kubernetes stack ready on Minikube (namespace: ledgerflux)"
 
-compose-down:
-	@echo "Removing Skaffold deployments and stopping Minikube ..."
+down:
+	@echo "Tearing down Minikube cluster and all deployments..."
 	- skaffold delete -p minikube
 	$(MAKE) minikube-down
+	@echo "Minikube cluster stopped and deleted"
 
 status:
 	@echo "Checking pod status in ledgerflux namespace..."
@@ -136,10 +142,10 @@ k8s-cleanup:
 	./scripts/test-k8s.sh cleanup
 
 k8s-all: k8s-setup k8s-test k8s-metrics
-	@echo "✅ Complete Kubernetes test suite completed!"
+	@echo "Complete Kubernetes test suite completed"
 
 # Development helpers
-dev-setup: install compose-up
+dev-setup: install up
 	@echo "Development environment ready!"
 	@echo "Run 'make run-ingestor' in one terminal"
 	@echo "Run 'make run-normalizer' in another terminal"
@@ -210,11 +216,11 @@ skaffold-run:
 	skaffold run -p minikube --status-check --cache-artifacts=false
 
 skaffold-dev:
-	@echo "🔄 Starting Skaffold dev loop (minikube profile)..."
+	@echo "Starting Skaffold dev loop (minikube profile)..."
 	skaffold dev -p minikube --status-check --cache-artifacts=false
 
 deploy-local:
-	@echo "🚢 Building images and deploying to Kubernetes namespace '$(NAMESPACE)'..."
+	@echo "Building images and deploying to Kubernetes namespace '$(NAMESPACE)'..."
 	VERSION=$(VERSION) REGISTRY=$(REGISTRY) PUSH=$(PUSH) ./docker/build-images.sh
 	kubectl apply -f $(K8S_DIR)/namespace.yaml
 	kubectl -n $(NAMESPACE) apply -f $(K8S_DIR)/infrastructure/
@@ -222,16 +228,34 @@ deploy-local:
 	kubectl -n $(NAMESPACE) apply -f $(K8S_DIR)/services/config.yaml
 	# Apply all services (idempotent)
 	kubectl -n $(NAMESPACE) apply -f $(K8S_DIR)/services/
-	@echo "✅ Deploy complete. Check status with: kubectl -n $(NAMESPACE) get pods"
+	@echo "Deploy complete. Check status with: kubectl -n $(NAMESPACE) get pods"
 
 .PHONY: undeploy-local
 undeploy-local:
-	@echo "🧹 Deleting Kubernetes namespace '$(NAMESPACE)' (if exists)..."
+	@echo "Deleting Kubernetes namespace '$(NAMESPACE)' (if exists)..."
 	kubectl delete namespace $(NAMESPACE) --ignore-not-found
-	@echo "✅ Removed. To remove local images: docker rmi -f $$(docker images 'ledgerflux-*' -q) || true"
+	@echo "Removed. To remove local images: docker rmi -f $$(docker images 'ledgerflux-*' -q) || true"
 
 # Pre-commit hooks
 .PHONY: pre-commit-install
 pre-commit-install:
 	uvx pre-commit install --install-hooks
-	@echo "✅ pre-commit installed. Hooks: ruff, black, mypy(strict), eof-fixer, trailing-whitespace"
+	@echo "pre-commit installed. Hooks: ruff, black, mypy(strict), eof-fixer, trailing-whitespace"
+
+# UI Access (opens in browser)
+.PHONY: grafana prometheus gateway-ui
+grafana:
+	@echo "Opening Grafana (monitoring & market data dashboards)..."
+	@echo "Login: admin / admin"
+	@echo "Access at: http://localhost:3000"
+	@kubectl port-forward -n ledgerflux svc/grafana 3000:3000
+
+prometheus:
+	@echo "Opening Prometheus (metrics explorer)..."
+	@echo "Access at: http://localhost:9090"
+	@kubectl port-forward -n ledgerflux svc/prometheus 9090:9090
+
+gateway-ui:
+	@echo "Opening Gateway WebSocket UI..."
+	@echo "Access at: http://localhost:8000"
+	@kubectl port-forward -n ledgerflux svc/gateway 8000:8000

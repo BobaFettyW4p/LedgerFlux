@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: snapshotter
   namespace: ledgerflux
@@ -7,7 +7,9 @@ metadata:
     app: snapshotter
     component: ledgerflux
 spec:
-  replicas: 4  # One per shard
+  serviceName: snapshotter-headless
+  replicas: 4  # One per shard (ordinal == shard_id)
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       app: snapshotter
@@ -91,6 +93,23 @@ spec:
           items:
           - key: config.json
             path: config.json
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: snapshotter-headless
+  namespace: ledgerflux
+  labels:
+    app: snapshotter
+spec:
+  clusterIP: None
+  ports:
+  - port: 8082
+    targetPort: 8082
+    name: metrics
+  selector:
+    app: snapshotter
 
 ---
 apiVersion: v1

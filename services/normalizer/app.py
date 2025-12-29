@@ -55,11 +55,8 @@ class Normalizer:
         
         print("Attempting to connect to NATS...")
         try:
-            await asyncio.wait_for(self.broker.connect(), timeout=10.0)
+            await self.broker.connect(timeout=60.0)
             print("Connected to message broker")
-        except asyncio.TimeoutError:
-            print("NATS connection timed out after 10 seconds")
-            raise
         except Exception as e:
             print(f"Failed to connect to NATS: {e}")
             raise
