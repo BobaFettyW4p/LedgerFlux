@@ -14,7 +14,7 @@ class NATSStreamManager:
         self.subscriptions: Dict[int, Any] = {}
         self.fetch_tasks: Dict[int, Any] = {}
 
-    async def connect(self) -> None:
+    async def connect(self, timeout: float = 30.0) -> None:
         try:
             import nats
             import nats.js
@@ -25,12 +25,39 @@ class NATSStreamManager:
             ) from exc
 
         print(f"Connecting to NATS at {self.config.urls}...")
-        self.nats_connection = await asyncio.wait_for(
-            nats.connect(self.config.urls), timeout=10.0
-        )
-        print("Connected to NATS")
-        self.jetstream = self.nats_connection.jetstream()
-        print("JetStream context created")
+
+        # Retry connection with exponential backoff
+        start_time = asyncio.get_event_loop().time()
+        attempt = 0
+        last_error = None
+
+        while (asyncio.get_event_loop().time() - start_time) < timeout:
+            attempt += 1
+            try:
+                self.nats_connection = await asyncio.wait_for(
+                    nats.connect(self.config.urls), timeout=5.0
+                )
+                print("Connected to NATS")
+                self.jetstream = self.nats_connection.jetstream()
+                print("JetStream context created")
+                break
+            except Exception as e:
+                last_error = e
+                elapsed = asyncio.get_event_loop().time() - start_time
+                remaining = timeout - elapsed
+
+                if remaining <= 0:
+                    break
+
+                # Exponential backoff: 1s, 2s, 4s, 8s, 16s, capped by remaining time
+                wait_time = min(2 ** (attempt - 1), remaining)
+                print(f"NATS connection failed (attempt {attempt}): {e}. Retrying in {wait_time:.1f}s...")
+                await asyncio.sleep(wait_time)
+
+        if self.nats_connection is None:
+            raise ConnectionError(
+                f"Failed to connect to NATS at {self.config.urls} after {timeout}s: {last_error}"
+            )
 
         # Check if the stream already exists before attempting creation. This avoids
         # failing on creation when the stream is already present or when the server

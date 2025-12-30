@@ -7,6 +7,7 @@ build:
     push: false
     useDockerCLI: true
     useBuildkit: true
+    tryImportMissing: false
   tagPolicy:
     envTemplate:
       template: "{{.IMAGE_NAME}}:latest"
@@ -55,10 +56,13 @@ deploy:
   kubectl:
     defaultNamespace: ledgerflux
 manifests:
+  kustomize:
+    paths:
+      - k8s/services
+      - k8s/infrastructure
   rawYaml:
     - k8s/namespace.yaml
-    - k8s/infrastructure/*
-    - k8s/services/*
+    - k8s/services/config.yaml
     - k8s/ingress/*
 profiles:
   - name: minikube
@@ -69,6 +73,7 @@ profiles:
         push: false
         useDockerCLI: true
         useBuildkit: false
+        tryImportMissing: false
     deploy:
       kubectl:
         defaultNamespace: ledgerflux

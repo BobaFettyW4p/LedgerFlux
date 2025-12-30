@@ -14,10 +14,10 @@ data:
       url: http://prometheus:9090
       isDefault: true
     - name: LedgerFlux PostgreSQL
-      type: postgres
+      type: grafana-postgresql-datasource
       uid: postgres
       access: proxy
-      url: postgres:5432
+      url: postgres
       database: ledgerflux
       user: postgres
       secureJsonData:
@@ -25,6 +25,7 @@ data:
       jsonData:
         sslmode: disable
         postgresVersion: 1500
+        port: 5432
 
 ---
 apiVersion: v1
@@ -92,6 +93,16 @@ spec:
         volumeMounts:
         - name: grafana-data
           mountPath: /var/lib/grafana
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: dashboard-provisioning
+          mountPath: /etc/grafana/provisioning/dashboards
+        - name: dashboard-market-data
+          mountPath: /var/lib/grafana/dashboards/market-data.json
+          subPath: market-data.json
+        - name: dashboard-system-health
+          mountPath: /var/lib/grafana/dashboards/system-health.json
+          subPath: system-health.json
         resources:
           requests:
             memory: "256Mi"
@@ -115,6 +126,18 @@ spec:
       - name: grafana-data
         persistentVolumeClaim:
           claimName: grafana-data
+      - name: datasources
+        configMap:
+          name: grafana-datasources
+      - name: dashboard-provisioning
+        configMap:
+          name: grafana-dashboard-provisioning
+      - name: dashboard-market-data
+        configMap:
+          name: grafana-dashboard-market-data
+      - name: dashboard-system-health
+        configMap:
+          name: grafana-dashboard-system-health
 
 ---
 apiVersion: v1
@@ -125,10 +148,11 @@ metadata:
   labels:
     app: grafana
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
   - port: 3000
     targetPort: 3000
+    nodePort: 30300
     name: grafana
   selector:
     app: grafana

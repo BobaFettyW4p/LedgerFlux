@@ -386,21 +386,21 @@ data:
       "panels": [
         {
           "id": 1,
-          "title": "BTC-USD Price (Last Hour)",
+          "title": "BTC-USD Price",
           "type": "timeseries",
           "gridPos": {
             "h": 10,
-            "w": 12,
+            "w": 8,
             "x": 0,
             "y": 0
           },
-          "datasource": "postgres",
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
           "targets": [
             {
               "format": "time_series",
-              "rawSql": "SELECT\n  timestamp as time,\n  price\nFROM tick_history\nWHERE\n  product = 'BTC-USD'\n  AND price IS NOT NULL\n  AND timestamp > NOW() - INTERVAL '1 hour'\nORDER BY timestamp",
+              "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\",\n  AVG(price) AS \"Price\"\nFROM tick_history\nWHERE\n  product = 'BTC-USD'\n  AND price IS NOT NULL\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
               "refId": "A",
-              "datasource": "postgres"
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -408,32 +408,52 @@ data:
               "custom": {
                 "drawStyle": "line",
                 "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "fillOpacity": 10,
+                "lineWidth": 2,
+                "fillOpacity": 0,
                 "showPoints": "never"
               },
               "unit": "currencyUSD",
               "decimals": 2
-            }
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Bid"},
+                "properties": [
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Ask"},
+                "properties": [
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Price"},
+                "properties": [
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "blue"}}
+                ]
+              }
+            ]
           }
         },
         {
           "id": 2,
-          "title": "ETH-USD Price (Last Hour)",
+          "title": "ETH-USD Price",
           "type": "timeseries",
           "gridPos": {
             "h": 10,
-            "w": 12,
-            "x": 12,
+            "w": 8,
+            "x": 8,
             "y": 0
           },
-          "datasource": "postgres",
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
           "targets": [
             {
               "format": "time_series",
-              "rawSql": "SELECT\n  timestamp as time,\n  price\nFROM tick_history\nWHERE\n  product = 'ETH-USD'\n  AND price IS NOT NULL\n  AND timestamp > NOW() - INTERVAL '1 hour'\nORDER BY timestamp",
+              "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\",\n  AVG(price) AS \"Price\"\nFROM tick_history\nWHERE\n  product = 'ETH-USD'\n  AND price IS NOT NULL\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
               "refId": "A",
-              "datasource": "postgres"
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -441,13 +461,86 @@ data:
               "custom": {
                 "drawStyle": "line",
                 "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "fillOpacity": 10,
+                "lineWidth": 2,
+                "fillOpacity": 0,
                 "showPoints": "never"
               },
               "unit": "currencyUSD",
               "decimals": 2
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Bid"},
+                "properties": [
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Ask"},
+                "properties": [
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Price"},
+                "properties": [
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "blue"}}
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": 8,
+          "title": "ADA-USD Price",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 10,
+            "w": 8,
+            "x": 16,
+            "y": 0
+          },
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "targets": [
+            {
+              "format": "time_series",
+              "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\",\n  AVG(price) AS \"Price\"\nFROM tick_history\nWHERE\n  product = 'ADA-USD'\n  AND price IS NOT NULL\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
+              "refId": "A",
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
             }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "fillOpacity": 0,
+                "showPoints": "never"
+              },
+              "unit": "currencyUSD",
+              "decimals": 2
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Bid"},
+                "properties": [
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Ask"},
+                "properties": [
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Price"},
+                "properties": [
+                  {"id": "color", "value": {"mode": "fixed", "fixedColor": "blue"}}
+                ]
+              }
+            ]
           }
         },
         {
@@ -456,17 +549,83 @@ data:
           "type": "timeseries",
           "gridPos": {
             "h": 10,
-            "w": 12,
+            "w": 8,
             "x": 0,
             "y": 10
           },
-          "datasource": "postgres",
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
           "targets": [
             {
               "format": "time_series",
-              "rawSql": "SELECT\n  timestamp as time,\n  price as \"Price\",\n  bid as \"Bid\",\n  ask as \"Ask\"\nFROM tick_history\nWHERE\n  product = 'BTC-USD'\n  AND timestamp > NOW() - INTERVAL '1 hour'\nORDER BY timestamp",
+              "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(price) AS \"Price\",\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\"\nFROM tick_history\nWHERE\n  product = 'BTC-USD'\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
               "refId": "A",
-              "datasource": "postgres"
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "fillOpacity": 5,
+                "showPoints": "never"
+              },
+              "unit": "currencyUSD",
+              "decimals": 2
+            }
+          }
+        },
+        {
+          "id": 9,
+          "title": "ETH-USD Bid/Ask Spread",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 10,
+            "w": 8,
+            "x": 8,
+            "y": 10
+          },
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "targets": [
+            {
+              "format": "time_series",
+              "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(price) AS \"Price\",\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\"\nFROM tick_history\nWHERE\n  product = 'ETH-USD'\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
+              "refId": "A",
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "fillOpacity": 5,
+                "showPoints": "never"
+              },
+              "unit": "currencyUSD",
+              "decimals": 2
+            }
+          }
+        },
+        {
+          "id": 10,
+          "title": "ADA-USD Bid/Ask Spread",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 10,
+            "w": 8,
+            "x": 16,
+            "y": 10
+          },
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "targets": [
+            {
+              "format": "time_series",
+              "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(price) AS \"Price\",\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\"\nFROM tick_history\nWHERE\n  product = 'ADA-USD'\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
+              "refId": "A",
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -489,17 +648,17 @@ data:
           "type": "timeseries",
           "gridPos": {
             "h": 10,
-            "w": 12,
-            "x": 12,
-            "y": 10
+            "w": 24,
+            "x": 0,
+            "y": 20
           },
-          "datasource": "postgres",
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
           "targets": [
             {
               "format": "time_series",
-              "rawSql": "SELECT\n  timestamp as time,\n  product as metric,\n  volume\nFROM tick_history\nWHERE\n  volume IS NOT NULL\n  AND timestamp > NOW() - INTERVAL '1 hour'\nORDER BY timestamp",
+              "rawSql": "SELECT\n  timestamp AS time,\n  product AS metric,\n  volume AS value\nFROM tick_history\nWHERE\n  volume IS NOT NULL\n  AND $__timeFilter(timestamp)\nORDER BY timestamp",
               "refId": "A",
-              "datasource": "postgres"
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -518,114 +677,231 @@ data:
         },
         {
           "id": 5,
-          "title": "Price Change (Last 24 Hours)",
+          "title": "BTC-USD Price Change",
           "type": "stat",
           "gridPos": {
             "h": 6,
-            "w": 6,
+            "w": 2,
             "x": 0,
-            "y": 20
+            "y": 30
           },
-          "datasource": "postgres",
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
           "targets": [
             {
               "format": "table",
-              "rawSql": "WITH first_last AS (\n  SELECT\n    product,\n    (ARRAY_AGG(price ORDER BY timestamp ASC))[1] as first_price,\n    (ARRAY_AGG(price ORDER BY timestamp DESC))[1] as last_price\n  FROM tick_history\n  WHERE\n    timestamp > NOW() - INTERVAL '24 hours'\n    AND price IS NOT NULL\n  GROUP BY product\n)\nSELECT\n  product as metric,\n  NOW() as time,\n  ((last_price - first_price) / first_price * 100) as value\nFROM first_last",
+              "rawSql": "WITH first_last AS (\n  SELECT\n    (ARRAY_AGG(price ORDER BY timestamp ASC))[1] AS first_price,\n    (ARRAY_AGG(price ORDER BY timestamp DESC))[1] AS last_price\n  FROM tick_history\n  WHERE price IS NOT NULL AND product = 'BTC-USD'\n)\nSELECT\n  NOW() AS time,\n  ((last_price - first_price) / first_price * 100) AS value\nFROM first_last",
               "refId": "A",
-              "datasource": "postgres"
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
             "defaults": {
               "unit": "percent",
               "decimals": 2,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "red",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": -1
-                  },
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 1
-                  },
-                  {
-                    "color": "red",
-                    "value": 5
-                  }
-                ]
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "green"
               }
             }
           },
           "options": {
             "colorMode": "background",
-            "graphMode": "area"
+            "graphMode": "area",
+            "textMode": "value_and_name"
+          }
+        },
+        {
+          "id": 11,
+          "title": "ETH-USD Price Change",
+          "type": "stat",
+          "gridPos": {
+            "h": 6,
+            "w": 2,
+            "x": 2,
+            "y": 30
+          },
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "targets": [
+            {
+              "format": "table",
+              "rawSql": "WITH first_last AS (\n  SELECT\n    (ARRAY_AGG(price ORDER BY timestamp ASC))[1] AS first_price,\n    (ARRAY_AGG(price ORDER BY timestamp DESC))[1] AS last_price\n  FROM tick_history\n  WHERE price IS NOT NULL AND product = 'ETH-USD'\n)\nSELECT\n  NOW() AS time,\n  ((last_price - first_price) / first_price * 100) AS value\nFROM first_last",
+              "refId": "A",
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 2,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "blue"
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "textMode": "value_and_name"
+          }
+        },
+        {
+          "id": 12,
+          "title": "ADA-USD Price Change",
+          "type": "stat",
+          "gridPos": {
+            "h": 6,
+            "w": 2,
+            "x": 4,
+            "y": 30
+          },
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "targets": [
+            {
+              "format": "table",
+              "rawSql": "WITH first_last AS (\n  SELECT\n    (ARRAY_AGG(price ORDER BY timestamp ASC))[1] AS first_price,\n    (ARRAY_AGG(price ORDER BY timestamp DESC))[1] AS last_price\n  FROM tick_history\n  WHERE price IS NOT NULL AND product = 'ADA-USD'\n)\nSELECT\n  NOW() AS time,\n  ((last_price - first_price) / first_price * 100) AS value\nFROM first_last",
+              "refId": "A",
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 2,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "red"
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "textMode": "value_and_name"
           }
         },
         {
           "id": 6,
-          "title": "Tick Count by Product (Last Hour)",
-          "type": "bargauge",
+          "title": "BTC-USD Tick Count",
+          "type": "stat",
           "gridPos": {
             "h": 6,
-            "w": 6,
+            "w": 2,
             "x": 6,
-            "y": 20
+            "y": 30
           },
-          "datasource": "postgres",
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
           "targets": [
             {
               "format": "table",
-              "rawSql": "SELECT\n  product as metric,\n  NOW() as time,\n  COUNT(*) as value\nFROM tick_history\nWHERE timestamp > NOW() - INTERVAL '1 hour'\nGROUP BY product\nORDER BY value DESC",
+              "rawSql": "SELECT NOW() AS time, COUNT(*) AS value FROM tick_history WHERE product = 'BTC-USD'",
               "refId": "A",
-              "datasource": "postgres"
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
             "defaults": {
               "unit": "short",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "green"
               }
             }
           },
           "options": {
-            "orientation": "horizontal",
-            "displayMode": "gradient"
+            "colorMode": "background",
+            "graphMode": "area",
+            "textMode": "value_and_name"
+          }
+        },
+        {
+          "id": 13,
+          "title": "ETH-USD Tick Count",
+          "type": "stat",
+          "gridPos": {
+            "h": 6,
+            "w": 2,
+            "x": 8,
+            "y": 30
+          },
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "targets": [
+            {
+              "format": "table",
+              "rawSql": "SELECT NOW() AS time, COUNT(*) AS value FROM tick_history WHERE product = 'ETH-USD'",
+              "refId": "A",
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "blue"
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "textMode": "value_and_name"
+          }
+        },
+        {
+          "id": 14,
+          "title": "ADA-USD Tick Count",
+          "type": "stat",
+          "gridPos": {
+            "h": 6,
+            "w": 2,
+            "x": 10,
+            "y": 30
+          },
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "targets": [
+            {
+              "format": "table",
+              "rawSql": "SELECT NOW() AS time, COUNT(*) AS value FROM tick_history WHERE product = 'ADA-USD'",
+              "refId": "A",
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "red"
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "textMode": "value_and_name"
           }
         },
         {
           "id": 7,
-          "title": "Average Price by Product (Last Hour)",
+          "title": "Average Price by Product",
           "type": "table",
           "gridPos": {
             "h": 6,
             "w": 12,
             "x": 12,
-            "y": 20
+            "y": 30
           },
-          "datasource": "postgres",
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
           "targets": [
             {
               "format": "table",
-              "rawSql": "SELECT\n  product as \"Product\",\n  AVG(price) as \"Avg Price\",\n  MIN(price) as \"Min Price\",\n  MAX(price) as \"Max Price\",\n  COUNT(*) as \"Ticks\"\nFROM tick_history\nWHERE\n  timestamp > NOW() - INTERVAL '1 hour'\n  AND price IS NOT NULL\nGROUP BY product\nORDER BY product",
+              "rawSql": "SELECT\n  product AS \"Product\",\n  AVG(price) AS \"Avg Price\",\n  MIN(price) AS \"Min Price\",\n  MAX(price) AS \"Max Price\",\n  COUNT(*) AS \"Ticks\"\nFROM tick_history\nWHERE price IS NOT NULL\nGROUP BY product\nORDER BY product",
               "refId": "A",
-              "datasource": "postgres"
+              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
             }
           ],
           "fieldConfig": {

@@ -96,8 +96,8 @@ class CoinbaseIngester:
         print(f"NATS: configured via nats.config.json")
         print(f"Shards: {self.num_shards}")
         await self._start_health_server()
-        
-        await self.broker.connect()
+
+        await self.broker.connect(timeout=60.0)
         self._broker_ready = True
         self._ready = True
         print("Connected to message broker")

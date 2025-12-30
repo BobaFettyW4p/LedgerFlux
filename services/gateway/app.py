@@ -112,25 +112,26 @@ class Gateway:
         self._setup_routes()
     
     def _setup_routes(self):
-        
+        port = self.port  # Capture port in closure
+
         @self.app.get("/")
         async def root():
-            return HTMLResponse("""
+            return HTMLResponse(f"""
             <html>
                 <head><title>Market Data Gateway</title></head>
                 <body>
                     <h1>Market Data Gateway</h1>
-                    <p>WebSocket endpoint: <code>ws://localhost:{}/ws</code></p>
+                    <p>WebSocket endpoint: <code>ws://localhost:{port}/ws</code></p>
                     <h2>Protocol</h2>
                     <h3>Subscribe</h3>
-                    <pre>{"op": "subscribe", "products": ["BTC-USD"], "want_snapshot": true}</pre>
+                    <pre>{{"op": "subscribe", "products": ["BTC-USD"], "want_snapshot": true}}</pre>
                     <h3>Unsubscribe</h3>
-                    <pre>{"op": "unsubscribe", "products": ["BTC-USD"]}</pre>
+                    <pre>{{"op": "unsubscribe", "products": ["BTC-USD"]}}</pre>
                     <h3>Ping</h3>
-                    <pre>{"op": "ping", "t": 1234567890}</pre>
+                    <pre>{{"op": "ping", "t": 1234567890}}</pre>
                 </body>
             </html>
-            """.format(self.port))
+            """)
         
         @self.app.get("/health")
         async def health():
@@ -158,7 +159,7 @@ class Gateway:
         print(f"Input: {self.input_stream}")
         print(f"Rate Limit: {self.max_msgs_per_sec} msg/sec")
 
-        await self.broker.connect()
+        await self.broker.connect(timeout=60.0)
         try:
             await self.store.connect()
             await self.store.ensure_schema()

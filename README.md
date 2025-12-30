@@ -49,6 +49,27 @@ make status
 
 You should see all pods running in the `ledgerflux` namespace.
 
+### Access Dashboards
+
+Open Grafana to view market data and system health:
+
+```bash
+make grafana
+```
+
+This will automatically open Grafana in your browser. Login with `admin` / `admin`.
+
+Available dashboards:
+- **LedgerFlux Market Data** - Real-time price charts, bid/ask spreads, trading volume
+- **LedgerFlux System Health** - Service metrics, ingestion rates, active connections
+
+Other UIs:
+
+```bash
+make prometheus    # Metrics explorer
+make gateway-ui    # WebSocket gateway
+```
+
 ### Stop Everything
 
 ```bash

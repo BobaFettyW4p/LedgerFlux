@@ -66,8 +66,8 @@ class Snapshotter:
         print(f"Snapshot Period: {self.snapshot_period_ms}ms")
 
         await self._start_health_server()
-        
-        await self.broker.connect()
+
+        await self.broker.connect(timeout=60.0)
         self._broker_ready = True
         print("Connected to message broker")
         await self._init_store()
