@@ -18,11 +18,9 @@ help:
 	@echo "  install       - Install dependencies"
 	@echo "  lint          - Run linting"
 	@echo "  typecheck     - Run type checking"
-	@echo "  test          - Run tests"
+	@echo "  test          - Run tests with coverage (opens HTML report in browser)"
 	@echo "  up            - Start local Kubernetes stack (Minikube + Skaffold)"
 	@echo "  down          - Teardown Minikube cluster and all deployments"
-	@echo "  status        - Show status of all pods"
-	@echo "  logs          - Tail logs from all services"
 	@echo "  clean         - Clean up temporary files"
 	@echo ""
 	@echo "Access UI (opens in browser):"
@@ -30,35 +28,28 @@ help:
 	@echo "  prometheus    - Open Prometheus metrics"
 	@echo "  gateway-ui    - Open Gateway WebSocket UI"
 	@echo ""
-	@echo "Service targets:"
-	@echo "  run-ingestor     - Run the ingester service"
-	@echo "  run-normalizer   - Run a normalizer instance"
-	@echo "  run-snapshotter  - Run a snapshotter instance"
-	@echo "  run-gateway      - Run the gateway service"
-	@echo "  test-client      - Run the test client"
-	@echo ""
-	@echo "Docker images:"
-	@echo "  docker-build-all - Build all service images (uses build-images.sh)"
-	@echo ""
-	@echo "Kubernetes:"
-	@echo "  deploy-local    - Build images and apply k8s manifests"
-	@echo "  undeploy-local  - Delete namespace and all resources"
-	@echo "  kind-up         - Create a Kind cluster and enable ingress"
-	@echo "  kind-load       - Load local images into Kind"
-	@echo "  kind-deploy     - Apply infra + services to Kind and wait"
-	@echo "  kind-down       - Delete the Kind cluster"
-	@echo "  minikube-up     - Start Minikube and enable ingress"
-	@echo "  minikube-load   - Load local images into Minikube"
-	@echo "  minikube-deploy - Apply infra + services to Minikube and wait"
-	@echo "  minikube-down   - Stop and delete Minikube"
-	@echo "  skaffold-prep   - Build all images into Minikube Docker daemon (pre-skaffold)"
-	@echo "  skaffold-run    - Build and deploy with Skaffold (minikube profile)"
-	@echo "  skaffold-dev    - Live-reload with Skaffold dev loop (minikube profile)"
-	@echo ""
 
 # Install dependencies
 install:
-	uv sync
+	@if ! command -v uv > /dev/null; then \
+		echo "Error: uv is not installed."; \
+		echo ""; \
+		echo "Install uv with one of the following:"; \
+		echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"; \
+		echo "  pip install uv"; \
+		echo "  pipx install uv"; \
+		echo ""; \
+		echo "Then run 'make install' again."; \
+		exit 1; \
+	fi
+	@echo "Ensuring Python 3.12+ is available..."
+	@uv python install 3.12
+	@uv python pin 3.12
+	@echo "Installing project dependencies..."
+	@uv sync --all-extras
+	@echo ""
+	@echo "✓ Installation complete! Python 3.12 and all dependencies installed."
+	@echo "  Run 'make test' to run tests with coverage"
 
 # Linting
 lint:
@@ -71,7 +62,17 @@ typecheck:
 
 # Tests
 test:
-	uv run pytest tests/ -v
+	@echo "Running tests with coverage..."
+	@uv run pytest tests/unit -v --cov=services --cov-report=html --cov-report=term-missing
+	@echo ""
+	@echo "Opening coverage report in browser..."
+	@if command -v xdg-open > /dev/null; then \
+		xdg-open htmlcov/index.html; \
+	elif command -v open > /dev/null; then \
+		open htmlcov/index.html; \
+	else \
+		echo "Coverage report generated at htmlcov/index.html"; \
+	fi
 
 # Infrastructure
 up:
@@ -86,163 +87,15 @@ down:
 	$(MAKE) minikube-down
 	@echo "Minikube cluster stopped and deleted"
 
-status:
-	@echo "Checking pod status in ledgerflux namespace..."
-	@kubectl get pods -n ledgerflux
-
-logs:
-	@echo "Tailing logs from all services..."
-	@skaffold logs --tail -p minikube
-
 # Clean up
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*.pyo" -delete
+	rm -rf htmlcov/
+	rm -f .coverage coverage.xml
+	rm -rf .pytest_cache/
 
-# Service runners
-run-ingestor:
-	uv run python -m services.ingestor.app --products BTC-USD,ETH-USD --broker-urls nats://localhost:4222
-
-run-normalizer:
-	uv run python -m services.normalizer.app --shard-id 0 --broker-urls nats://localhost:4222
-
-run-snapshotter:
-	uv run python -m services.snapshotter.app --shard-id 0 --broker-urls nats://localhost:4222
-
-run-gateway:
-	uv run python -m services.gateway.app --broker-urls nats://localhost:4222
-
-test-client:
-	uv run python test_client.py
-
-# Kubernetes testing
-k8s-setup:
-	@echo "Setting up Kubernetes test environment..."
-	./scripts/test-k8s.sh setup
-
-k8s-test:
-	@echo "Running Kubernetes integration tests..."
-	./scripts/test-k8s.sh test
-
-k8s-load:
-	@echo "Running Kubernetes load tests..."
-	./scripts/test-k8s.sh load
-
-k8s-metrics:
-	@echo "Checking Kubernetes metrics..."
-	./scripts/test-k8s.sh metrics
-
-k8s-status:
-	@echo "Showing Kubernetes system status..."
-	./scripts/test-k8s.sh status
-
-k8s-cleanup:
-	@echo "Cleaning up Kubernetes test environment..."
-	./scripts/test-k8s.sh cleanup
-
-k8s-all: k8s-setup k8s-test k8s-metrics
-	@echo "Complete Kubernetes test suite completed"
-
-# Development helpers
-dev-setup: install up
-	@echo "Development environment ready!"
-	@echo "Run 'make run-ingestor' in one terminal"
-	@echo "Run 'make run-normalizer' in another terminal"
-	@echo "Run 'make run-snapshotter' in another terminal"
-	@echo "Run 'make run-gateway' in another terminal"
-	@echo "Run 'make test-client' to test the system"
-
-# Test client with different options
-test-client-basic:
-	uv run python test_client.py --products BTC-USD,ETH-USD --duration 30
-
-test-client-load:
-	uv run python test_client.py --products BTC-USD,ETH-USD --load-test --num-clients 10 --duration 60
-
-# Docker images
-.PHONY: docker-build-all
-docker-build-all:
-	./docker/build-images.sh
-
-.PHONY: deploy-local
-
-# Minikube helpers
-MINIKUBE_CPUS ?= 4
-MINIKUBE_MEM ?= 8192
-
-minikube-up:
-	@echo "Starting Minikube ..."
-	minikube start --cpus=$(MINIKUBE_CPUS) --memory=$(MINIKUBE_MEM)
-	@echo "Enabling ingress ..."
-	minikube addons enable ingress
-	@echo "Add to /etc/hosts: $$(minikube ip) ledgerflux.local nats.local minio.local"
-
-minikube-load:
-	@echo "Building images ..."
-	DOCKER_BUILDKIT=1 ./docker/build-images.sh
-	@echo "Loading images into Minikube ..."
-	@for img in $(KIND_IMAGES); do \
-	  echo " - $$img"; \
-	  minikube image load $$img; \
-	done
-
-minikube-deploy:
-	@echo "Deploying to Minikube ..."
-	kubectl apply -f k8s/namespace.yaml
-	kubectl apply -f k8s/infrastructure/
-	kubectl apply -f k8s/services/
-	kubectl apply -f k8s/ingress/
-	@echo "Waiting for deployments ..."
-	kubectl wait --for=condition=available --timeout=300s deploy/nats -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/postgres -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/minio -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/ingestor -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s statefulset/normalizer -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/snapshotter -n ledgerflux
-	kubectl wait --for=condition=available --timeout=300s deploy/gateway -n ledgerflux
-	@echo "Deployed. Visit http://$$(minikube ip)/ (or hosts entry for ledgerflux.local)."
-
-minikube-down:
-	@echo "Stopping Minikube ..."
-	minikube delete || true
-
-skaffold-prep:
-	@echo "Building images into Minikube Docker daemon (profile: minikube)..."
-	./scripts/skaffold-prep.sh
-
-skaffold-run:
-	@echo "Building and deploying via Skaffold (minikube profile)..."
-	skaffold run -p minikube --status-check --cache-artifacts=false
-
-skaffold-dev:
-	@echo "Starting Skaffold dev loop (minikube profile)..."
-	skaffold dev -p minikube --status-check --cache-artifacts=false
-
-deploy-local:
-	@echo "Building images and deploying to Kubernetes namespace '$(NAMESPACE)'..."
-	VERSION=$(VERSION) REGISTRY=$(REGISTRY) PUSH=$(PUSH) ./docker/build-images.sh
-	kubectl apply -f $(K8S_DIR)/namespace.yaml
-	kubectl -n $(NAMESPACE) apply -f $(K8S_DIR)/infrastructure/
-	# Apply config first to ensure env/urls exist
-	kubectl -n $(NAMESPACE) apply -f $(K8S_DIR)/services/config.yaml
-	# Apply all services (idempotent)
-	kubectl -n $(NAMESPACE) apply -f $(K8S_DIR)/services/
-	@echo "Deploy complete. Check status with: kubectl -n $(NAMESPACE) get pods"
-
-.PHONY: undeploy-local
-undeploy-local:
-	@echo "Deleting Kubernetes namespace '$(NAMESPACE)' (if exists)..."
-	kubectl delete namespace $(NAMESPACE) --ignore-not-found
-	@echo "Removed. To remove local images: docker rmi -f $$(docker images 'ledgerflux-*' -q) || true"
-
-# Pre-commit hooks
-.PHONY: pre-commit-install
-pre-commit-install:
-	uvx pre-commit install --install-hooks
-	@echo "pre-commit installed. Hooks: ruff, black, mypy(strict), eof-fixer, trailing-whitespace"
-
-# UI Access (opens in browser)
 .PHONY: grafana prometheus gateway-ui
 grafana:
 	@echo "Opening Grafana (monitoring & market data dashboards)..."

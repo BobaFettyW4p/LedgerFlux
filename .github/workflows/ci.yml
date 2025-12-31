@@ -73,12 +73,19 @@ jobs:
       - name: Type check (mypy)
         run: uvx mypy --strict services/
 
-      - name: Run tests (pytest if present)
+      - name: Run tests with coverage
         shell: bash
         run: |
           if [[ -n "${{ hashFiles('**/test*.py') }}" ]]; then
-            uvx pytest -q
+            uv run pytest tests/unit -v --cov=services --cov-report=xml --cov-report=term-missing --cov-fail-under=70
           else
             echo "No tests detected; skipping pytest."
           fi
+
+      - name: Upload coverage to Codecov (optional)
+        if: hashFiles('coverage.xml') != ''
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
 

@@ -48,7 +48,9 @@ class RateLimiter:
 
         self.tokens = min(self.burst, self.tokens + elapsed * self.max_rate)
         self.last_update = now
-        if self.tokens >= 1:
+        # Use small epsilon to handle floating point precision issues
+        # Epsilon of 0.005 handles millisecond-level time precision
+        if self.tokens >= 1.0 - 0.005:
             self.tokens -= 1
             return True
         return False

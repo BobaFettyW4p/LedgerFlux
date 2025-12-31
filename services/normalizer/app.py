@@ -112,13 +112,11 @@ class Normalizer:
             print(f"Processing tick: {tick.product} - {tick.type} (seq: {tick.seq})")
             self.stats['messages_processed'] += 1
             self.stats['products_seen'].add(tick.product)
-            
+
             if not self._validate_tick(tick):
                 self.stats['messages_rejected'] += 1
                 return
-            
-            self.last_sequences[tick.product] = tick.seq
-            
+
             output_shard = shard_index(tick.product, self.num_shards)
             
             # Publish to output stream
@@ -148,30 +146,33 @@ class Normalizer:
             if not tick.product or not tick.fields:
                 print(f"Missing required fields: {tick}")
                 return False
-            
+
             if tick.fields.last_trade and tick.fields.last_trade.px <= 0:
                 print(f"Invalid price: {tick.fields.last_trade.px}")
                 return False
-            
+
             if tick.fields.best_bid and tick.fields.best_bid.px <= 0:
                 print(f"Invalid bid price: {tick.fields.best_bid.px}")
                 return False
-            
+
             if tick.fields.best_ask and tick.fields.best_ask.px <= 0:
                 print(f"Invalid ask price: {tick.fields.best_ask.px}")
                 return False
-            
-            if (tick.fields.best_bid and tick.fields.best_ask and 
+
+            if (tick.fields.best_bid and tick.fields.best_ask and
                 tick.fields.best_ask.px <= tick.fields.best_bid.px):
                 print(f"Invalid spread: bid={tick.fields.best_bid.px}, ask={tick.fields.best_ask.px}")
                 return False
-            
+
             if tick.product in self.last_sequences:
                 if tick.seq < self.last_sequences[tick.product]:
                     print(f"Out-of-order sequence: {tick.product} {tick.seq} < {self.last_sequences[tick.product]}")
-            
+
+            # Update sequence tracking after validation passes
+            self.last_sequences[tick.product] = tick.seq
+
             return True
-            
+
         except Exception as e:
             print(f"Validation error: {e}")
             return False
