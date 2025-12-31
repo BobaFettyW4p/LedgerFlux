@@ -13,8 +13,7 @@ import uvicorn
 from services.common import (
     SubscribeRequest, UnsubscribeRequest, PingRequest,
     SnapshotMessage, IncrMessage, RateLimitMessage, PongMessage, ErrorMessage,
-    Tick, Snapshot, NATSStreamManager, NATSConfig,
-    get_metrics_response, set_build_info
+    Tick, Snapshot, NATSStreamManager, get_metrics_response, set_build_info
 )
 from services.common import validate_product_list
 from services.common.config import load_nats_config
@@ -156,7 +155,7 @@ class Gateway:
             await self._handle_websocket(websocket)
     
     async def start(self):
-        print(f"Starting Market Data Gateway")
+        print("Starting Market Data Gateway")
         print(f"WebSocket: ws://localhost:{self.port}/ws")
         print(f"Input: {self.input_stream}")
         print(f"Rate Limit: {self.max_msgs_per_sec} msg/sec")
@@ -190,7 +189,7 @@ class Gateway:
                 await self._handle_client_message(client, data)
 
         except WebSocketDisconnect:
-            print(f"Client disconnected")
+            print("Client disconnected")
             gateway_clients_total.labels(status='disconnected').inc()
         except Exception as e:
             print(f"WebSocket error: {e}")

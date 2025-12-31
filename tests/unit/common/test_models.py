@@ -1,7 +1,6 @@
 """Tests for Pydantic models in services/common/models.py"""
 import pytest
 from pydantic import ValidationError
-from datetime import datetime
 from services.common.models import (
     TradeData,
     TickFields,

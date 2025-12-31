@@ -1,7 +1,6 @@
 """Tests for configuration loading in services/common/config.py"""
 import pytest
 import json
-import os
 import tempfile
 from pathlib import Path
 from datetime import timedelta

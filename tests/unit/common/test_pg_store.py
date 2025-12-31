@@ -2,8 +2,7 @@
 import os
 import pytest
 from datetime import datetime
-from typing import Any, Dict
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 from services.common.pg_store import PostgresSnapshotStore, SnapshotRecord
 
 

@@ -6,7 +6,7 @@ import traceback
 from pathlib import Path
 from typing import Dict, Any
 
-from services.common import Tick, Snapshot, NATSStreamManager, NATSConfig, shard_index
+from services.common import Tick, NATSStreamManager, shard_index
 from services.common.config import load_nats_config
 
 
@@ -51,7 +51,7 @@ class Normalizer:
         print(f"Starting Normalizer (Shard {self.shard_id})")
         print(f"Input: {self.input_stream}.{self.shard_id}")
         print(f"Output: {self.output_stream}")
-        print(f"NATS: configured via nats.config.json")
+        print("NATS: configured via nats.config.json")
         
         print("Attempting to connect to NATS...")
         try:
@@ -100,7 +100,7 @@ class Normalizer:
                     await asyncio.sleep(1)
                     
         except asyncio.TimeoutError:
-            print(f"Failed to create subscription - timeout after 5 seconds")
+            print("Failed to create subscription - timeout after 5 seconds")
             return
         except Exception as e:
             print(f"Failed to create subscription: {e}")

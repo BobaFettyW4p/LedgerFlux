@@ -1,7 +1,6 @@
 """Unit tests for Normalizer application."""
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, Any
 
 from services.normalizer.app import Normalizer
 from services.common.models import Tick, TickFields, TradeData

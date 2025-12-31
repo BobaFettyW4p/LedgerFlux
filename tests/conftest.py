@@ -1,8 +1,8 @@
 """Root test configuration with shared fixtures."""
 import asyncio
 import pytest
-from typing import AsyncGenerator, Generator
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Generator
+from unittest.mock import AsyncMock, MagicMock
 
 
 @pytest.fixture(scope="session")

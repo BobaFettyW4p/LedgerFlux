@@ -1,18 +1,14 @@
 """Unit tests for Gateway application."""
-import asyncio
 import json
 import time
 import pytest
 from datetime import datetime
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
 from services.gateway.app import RateLimiter, ClientConnection, Gateway
 from services.common.models import (
-    Tick, Snapshot, TickFields, TradeData,
-    SubscribeRequest, UnsubscribeRequest, PingRequest,
-    SnapshotMessage, IncrMessage, RateLimitMessage, PongMessage, ErrorMessage
+    Tick, Snapshot, TickFields, TradeData
 )
 
 

@@ -1,14 +1,11 @@
 """Unit tests for Ingestor application."""
-import asyncio
 import json
 import pytest
-from datetime import datetime
-from typing import Any, Dict
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
 from services.ingestor.app import transform_coinbase_ticker, CoinbaseIngester
-from services.common.models import Tick, TickFields, TradeData
+from services.common.models import Tick
 
 
 @pytest.fixture

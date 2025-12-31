@@ -1,10 +1,7 @@
 """Unit tests for NATSStreamManager."""
 import asyncio
-import json
 import pytest
-from datetime import datetime
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 from services.common.stream import NATSStreamManager
 from services.common.config import NATSConfig
 from services.common.models import Tick, Snapshot, TickFields, TradeData
@@ -302,7 +299,7 @@ class TestNATSStreamManager:
             coro.close()
             return MagicMock()
 
-        with patch('asyncio.create_task', side_effect=create_task_side_effect) as mock_create_task:
+        with patch('asyncio.create_task', side_effect=create_task_side_effect):
             await manager.subscribe_to_shard(0, callback, consumer_name="test-consumer")
 
             expected_subject = f"{nats_config.subject_prefix}.0"

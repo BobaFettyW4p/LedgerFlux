@@ -1,5 +1,4 @@
 """Tests for Coinbase data transformation in services/ingestor/app.py"""
-import pytest
 from datetime import datetime, timezone
 from services.ingestor.app import transform_coinbase_ticker
 from services.common.models import Tick

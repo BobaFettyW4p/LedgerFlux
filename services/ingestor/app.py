@@ -7,8 +7,8 @@ from fastapi.responses import Response
 import uvicorn
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
-from services.common import Tick, TickFields, TradeData, create_tick, NATSStreamManager, NATSConfig, shard_product
+from typing import Dict, Any
+from services.common import Tick, TickFields, TradeData, create_tick, NATSStreamManager, shard_product
 from services.common.config import load_nats_config
 from services.common import get_metrics_response, set_build_info
 from services.common.metrics import (
@@ -90,10 +90,10 @@ class CoinbaseIngester:
         }
     
     async def start(self) -> None:
-        print(f"Starting Coinbase Ingester")
+        print("Starting Coinbase Ingester")
         print(f"Products: {', '.join(self.products)}")
         print(f"Channels: {', '.join(self.channels)}")
-        print(f"NATS: configured via nats.config.json")
+        print("NATS: configured via nats.config.json")
         print(f"Shards: {self.num_shards}")
         await self._start_health_server()
 

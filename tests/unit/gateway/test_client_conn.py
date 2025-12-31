@@ -1,11 +1,10 @@
 """Tests for ClientConnection class in services/gateway/app.py"""
 import pytest
 import json
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from datetime import datetime
 from freezegun import freeze_time
 from services.gateway.app import ClientConnection, RateLimiter
-from services.common.models import RateLimitMessage, ErrorMessage
 
 
 class TestClientConnection:

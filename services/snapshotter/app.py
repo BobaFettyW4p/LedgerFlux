@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Any
 from fastapi import FastAPI
 import uvicorn
-from services.common import Tick, create_snapshot, NATSStreamManager, NATSConfig
+from services.common import Tick, create_snapshot, NATSStreamManager
 from services.common.pg_store import PostgresSnapshotStore
 from services.common.config import load_nats_config
 
@@ -21,7 +21,8 @@ class Snapshotter:
         self.config = config
         shard_id = config.get('shard_id', 0)
         if shard_id is None or str(shard_id).lower() == 'auto':
-            import re, os
+            import re
+            import os
             pod_name = os.environ.get('HOSTNAME', '')
             match = re.search(r'-(\d+)$', pod_name)
             shard_id = int(match.group(1)) if match else 0

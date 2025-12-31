@@ -1,6 +1,4 @@
 """Tests for RateLimiter class in services/gateway/app.py"""
-import pytest
-import time
 from freezegun import freeze_time
 from services.gateway.app import RateLimiter
 

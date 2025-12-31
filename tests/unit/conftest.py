@@ -1,7 +1,7 @@
 """Unit test specific fixtures."""
 import pytest
 from datetime import datetime
-from services.common.models import Tick, TickFields, TradeData, Snapshot
+from services.common.models import Tick
 
 
 @pytest.fixture

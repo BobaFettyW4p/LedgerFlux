@@ -10,7 +10,7 @@ import json
 import websockets
 import argparse
 from datetime import datetime
-from typing import Dict, List, Set
+from typing import List, Set
 
 
 class MarketDataTestClient:
@@ -209,19 +209,19 @@ async def run_basic_test(gateway_url: str, products: List[str], duration: int = 
         await asyncio.sleep(1)
         
         # Subscribe to products
-        print(f"\n📡 Subscribing to products...")
+        print("\n📡 Subscribing to products...")
         await client.subscribe(products, want_snapshot=True)
         
         # Listen for messages
-        print(f"\n👂 Listening for market data...")
+        print("\n👂 Listening for market data...")
         await client.listen(duration)
         
         # Test unsubscribe
-        print(f"\n📡 Unsubscribing from products...")
+        print("\n📡 Unsubscribing from products...")
         await client.unsubscribe(products)
         
         # Final ping
-        print(f"\n🏓 Final ping...")
+        print("\n🏓 Final ping...")
         await client.ping()
         await asyncio.sleep(1)
         

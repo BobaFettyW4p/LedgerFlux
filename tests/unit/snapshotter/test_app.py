@@ -1,9 +1,7 @@
 """Unit tests for Snapshotter application."""
-import asyncio
 import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, Any
 from fastapi.testclient import TestClient
 
 from services.snapshotter.app import Snapshotter
