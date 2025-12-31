@@ -24,23 +24,12 @@ Coinbase WebSocket → Ingestor → NATS JetStream → [Normalizers] → [Snapsh
 
 ### Prerequisites
 
-**Required:**
 - **[uv](https://docs.astral.sh/uv/)** - Fast Python package manager
-  ```bash
-  # Install uv (choose one):
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  # or
-  pip install uv
-  # or
-  pipx install uv
-  ```
-
-**For Kubernetes deployment (optional):**
 - [Minikube](https://minikube.sigs.k8s.io/docs/start/) (v1.30+)
 - [Skaffold](https://skaffold.dev/docs/install/) (v2.0+)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
 
-**Note:** You don't need Python 3.12 pre-installed - `make install` will automatically install it via `uv`.
+**Note:** This project is built on python 3.12. Our `make install` make target will install and set this version if not already [installed|set]
 
 ### Getting Started (First Time Setup)
 
@@ -49,14 +38,20 @@ Coinbase WebSocket → Ingestor → NATS JetStream → [Normalizers] → [Snapsh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 2. Clone the repository
-git clone <repo-url>
+git clone https://github.com/BobaFettyW4p/LedgerFlux.git
 cd LedgerFlux
 
 # 3. Install Python 3.12 + dependencies
 make install
 
-# 4. Run tests to verify everything works
+# 4. Build the project
+make up
+
+# 5. Run tests to verify everything works
 make test
+
+# 6. Once finished, tear everything down
+make down
 ```
 
 That's it! `make install` handles everything - Python 3.12 installation and all dependencies.
@@ -93,7 +88,7 @@ make up
 ```
 
 This will:
-1. Start Minikube with appropriate resources (4 CPUs, 8GB RAM)
+1. Start Minikube with appropriate resources (4 CPUs, 8GB RAM, sufficient disk space to store data before data retention policies clean it up)
 2. Build all Docker images
 3. Deploy infrastructure (NATS, PostgreSQL, MinIO, Prometheus, Grafana)
 4. Deploy all microservices
@@ -101,11 +96,17 @@ This will:
 ### Verify Deployment
 
 ```bash
-make status
+You should see all pods running in the `ledgerflux` namespace. To view:
+```
+```
 ```
 
-You should see all pods running in the `ledgerflux` namespace.
+```
+```
+kubectl get pods -n ledgerflux
+```
 
+```
 ### Access Dashboards
 
 Open Grafana to view market data and system health:
@@ -130,37 +131,11 @@ make gateway-ui    # WebSocket gateway
 ### Stop Everything
 
 ```bash
-make compose-down
+make down
 ```
 
-## Development
-
-### Hot-Reload Development Mode
-
-```bash
-make skaffold-dev
-```
 
 This starts Skaffold in development mode - any code changes will automatically rebuild and redeploy the affected services.
-
-### Run Individual Services Locally
-
-```bash
-# Terminal 1: Start infrastructure
-make compose-up
-
-# Terminal 2: Run ingestor locally
-make run-ingestor
-
-# Terminal 3: Run normalizer locally  
-make run-normalizer
-
-# Terminal 4: Run snapshotter locally
-make run-snapshotter
-
-# Terminal 5: Run gateway locally
-make run-gateway
-```
 
 ### Testing
 
@@ -214,17 +189,10 @@ tests/
 #### Code Quality
 
 ```bash
-# Run linting
-make lint
+This project leverages `black` `ruff` and `mypy` to enforce linting and type standards. 
 
-# Run type checking (strict mode)
-make typecheck
-
-# Run all checks (lint + typecheck + test with coverage)
-make lint && make typecheck && make test
+There is a CI/CD pipeline located at `.github/workflows/ci.yml` that runs these tools on the codebase prior to merge.
 ```
-
-The test command will open an interactive HTML coverage report showing exactly which lines are covered and which need attention.
 
 ## Makefile Commands
 
@@ -232,10 +200,8 @@ Run `make help` to see all available commands:
 
 ```
 Available Makefile targets:
-  compose-up       - Start infrastructure via Minikube + Skaffold
-  compose-down     - Remove deployments and stop Minikube
-  skaffold-run     - Build and deploy with Skaffold
-  skaffold-dev     - Live-reload with Skaffold dev loop
+  up       - Start infrastructure via Minikube + Skaffold
+  down     - Remove deployments and stop Minikube
   status           - Show status of all pods
   test             - Run tests
   lint             - Run linting
@@ -267,41 +233,3 @@ Available Makefile targets:
 ├── Makefile             # Development commands
 └── skaffold.yaml        # Skaffold configuration
 ```
-
-## Troubleshooting
-
-### Pods Not Starting
-
-If pods are in `CrashLoopBackOff`:
-
-```bash
-# Check logs
-kubectl logs -n ledgerflux <pod-name>
-
-# Or use Skaffold's log streaming
-make logs
-```
-
-### Minikube Resources
-
-If you see "Insufficient CPU/Memory" errors:
-
-```bash
-minikube delete
-minikube start --cpus=4 --memory=8192
-make compose-up
-```
-
-### Clean Slate
-
-To completely reset:
-
-```bash
-make clean
-minikube delete
-make compose-up
-```
-
-## License
-
-MIT

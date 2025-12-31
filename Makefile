@@ -75,6 +75,18 @@ test:
 	fi
 
 # Infrastructure
+minikube-up:
+	@echo "Starting Minikube cluster (8GB RAM, 4 CPUs, 50GB disk)..."
+	minikube start --memory=8192 --cpus=4 --disk-size=50g --driver=docker
+	@echo "Creating namespace $(NAMESPACE)..."
+	-kubectl create namespace $(NAMESPACE)
+	@echo "Minikube cluster ready"
+
+minikube-down:
+	@echo "Deleting Minikube cluster and all data..."
+	minikube delete
+	@echo "Minikube cluster deleted"
+
 up:
 	@echo "Starting local Kubernetes stack (Minikube + Skaffold)..."
 	$(MAKE) minikube-up
