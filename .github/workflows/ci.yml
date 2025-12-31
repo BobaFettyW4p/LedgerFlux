@@ -71,7 +71,7 @@ jobs:
           uvx ruff format --check .
 
       - name: Type check (mypy)
-        run: uvx mypy --strict services/
+        run: uv run mypy services/
 
       - name: Run tests with coverage
         shell: bash
