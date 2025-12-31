@@ -82,10 +82,3 @@ jobs:
             echo "No tests detected; skipping pytest."
           fi
 
-      - name: Upload coverage to Codecov (optional)
-        if: hashFiles('coverage.xml') != ''
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
-
