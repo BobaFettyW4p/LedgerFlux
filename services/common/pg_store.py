@@ -91,6 +91,7 @@ class PostgresSnapshotStore:
         last_update = serializable_state.get("last_update")
         try:
             from datetime import datetime
+
             if isinstance(last_update, datetime):
                 serializable_state["last_update"] = last_update.isoformat()
         except Exception:

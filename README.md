@@ -24,15 +24,72 @@ Coinbase WebSocket → Ingestor → NATS JetStream → [Normalizers] → [Snapsh
 
 ### Prerequisites
 
+**Required:**
+- **[uv](https://docs.astral.sh/uv/)** - Fast Python package manager
+  ```bash
+  # Install uv (choose one):
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  # or
+  pip install uv
+  # or
+  pipx install uv
+  ```
+
+**For Kubernetes deployment (optional):**
 - [Minikube](https://minikube.sigs.k8s.io/docs/start/) (v1.30+)
 - [Skaffold](https://skaffold.dev/docs/install/) (v2.0+)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [Make](https://www.gnu.org/software/make/)
 
-### One-Command Setup
+**Note:** You don't need Python 3.12 pre-installed - `make install` will automatically install it via `uv`.
+
+### Getting Started (First Time Setup)
 
 ```bash
-make compose-up
+# 1. Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. Clone the repository
+git clone <repo-url>
+cd LedgerFlux
+
+# 3. Install Python 3.12 + dependencies
+make install
+
+# 4. Run tests to verify everything works
+make test
+```
+
+That's it! `make install` handles everything - Python 3.12 installation and all dependencies.
+
+<details>
+<summary>What gets installed?</summary>
+
+**Production dependencies:**
+- `fastapi` - Web framework
+- `websockets` - WebSocket support
+- `pydantic` - Data validation
+- `nats-py` - NATS JetStream messaging
+- `uvicorn` - ASGI server
+- `psycopg` - PostgreSQL adapter
+- `prometheus-client` - Metrics
+
+**Development/testing dependencies:**
+- `pytest` + `pytest-asyncio` - Testing framework with async support
+- `pytest-cov` - Coverage reporting
+- `pytest-mock` - Advanced mocking
+- `pytest-timeout` - Prevent hanging tests
+- `freezegun` - Time manipulation for tests
+- `httpx` - FastAPI testing support
+- `ruff` - Fast linter
+- `black` - Code formatter
+- `mypy` - Type checker
+
+</details>
+
+### Deploying to Kubernetes
+
+```bash
+make up
 ```
 
 This will:
@@ -107,16 +164,67 @@ make run-gateway
 
 ### Testing
 
-```bash
-# Run unit tests
-make test
+LedgerFlux has comprehensive unit test coverage for all critical business logic. All testing dependencies are automatically installed by `make install`.
 
+#### Running Tests
+
+```bash
+# Run tests with coverage (opens HTML report in browser)
+make test
+```
+
+This will:
+1. Run all unit tests with coverage
+2. Generate an HTML coverage report
+3. Automatically open the report in your default browser
+4. Display coverage summary in the terminal
+
+#### Test Coverage
+
+The test suite covers:
+- **Common utilities** (85%+): Sharding, hashing, product validation, quantity formatting
+- **Rate limiting** (85%+): Token bucket algorithm, burst handling, time-based refills
+- **Data transformation** (85%+): Coinbase ticker parsing, timestamp conversion
+- **Data validation** (85%+): Price validation, spread checking, sequence ordering
+- **Pydantic models** (75%+): All data models and message protocols
+- **Configuration** (70%+): Config loading with env var precedence
+
+**Overall target: 70%+ coverage** (enforced in CI)
+
+#### Test Structure
+
+```
+tests/
+├── conftest.py              # Root fixtures (NATS, PostgreSQL, WebSocket mocks)
+└── unit/
+    ├── conftest.py          # Sample data fixtures
+    ├── common/              # Tests for shared modules
+    │   ├── test_util.py     # Sharding, validation, formatting
+    │   ├── test_models.py   # Pydantic models
+    │   └── test_config.py   # Configuration loading
+    ├── gateway/             # Gateway service tests
+    │   ├── test_rate_limiter.py
+    │   └── test_client_conn.py
+    ├── ingestor/            # Ingestor service tests
+    │   └── test_transform.py
+    └── normalizer/          # Normalizer service tests
+        └── test_validation.py
+```
+
+#### Code Quality
+
+```bash
 # Run linting
 make lint
 
-# Run type checking
+# Run type checking (strict mode)
 make typecheck
+
+# Run all checks (lint + typecheck + test with coverage)
+make lint && make typecheck && make test
 ```
+
+The test command will open an interactive HTML coverage report showing exactly which lines are covered and which need attention.
 
 ## Makefile Commands
 

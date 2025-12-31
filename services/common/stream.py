@@ -51,7 +51,9 @@ class NATSStreamManager:
 
                 # Exponential backoff: 1s, 2s, 4s, 8s, 16s, capped by remaining time
                 wait_time = min(2 ** (attempt - 1), remaining)
-                print(f"NATS connection failed (attempt {attempt}): {e}. Retrying in {wait_time:.1f}s...")
+                print(
+                    f"NATS connection failed (attempt {attempt}): {e}. Retrying in {wait_time:.1f}s..."
+                )
                 await asyncio.sleep(wait_time)
 
         if self.nats_connection is None:
@@ -96,9 +98,7 @@ class NATSStreamManager:
             ):
                 print(f"Stream already exists: {self.config.stream_name}")
             else:
-                print(
-                    f"Failed to create stream '{self.config.stream_name}': {exc}"
-                )
+                print(f"Failed to create stream '{self.config.stream_name}': {exc}")
                 raise
 
     async def disconnect(self) -> None:
@@ -132,7 +132,9 @@ class NATSStreamManager:
             raise RuntimeError("JetStream is not connected")
         subject = f"{self.config.subject_prefix}.{shard}"
         if consumer_name:
-            print(f"Creating pull subscription for {subject} with consumer {consumer_name}")
+            print(
+                f"Creating pull subscription for {subject} with consumer {consumer_name}"
+            )
             sub = await self.jetstream.pull_subscribe(subject, durable=consumer_name)
         else:
             print(f"Creating ephemeral pull subscription for {subject}")
