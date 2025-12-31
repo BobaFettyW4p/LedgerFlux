@@ -1,14 +1,11 @@
 """Tests for configuration loading in services/common/config.py"""
+
 import pytest
 import json
 import tempfile
 from pathlib import Path
 from datetime import timedelta
-from services.common.config import (
-    NATSConfig,
-    load_nats_config,
-    _parse_bool
-)
+from services.common.config import NATSConfig, load_nats_config, _parse_bool
 
 
 class TestParseBool:
@@ -72,7 +69,7 @@ class TestNATSConfig:
             subject_prefix="test.subject",
             retention_minutes=30,
             max_age_seconds=1800,
-            delete_existing=True
+            delete_existing=True,
         )
 
         assert config.urls == "nats://localhost:4222"
@@ -89,7 +86,7 @@ class TestNATSConfig:
             stream_name="test_stream",
             subject_prefix="test.subject",
             retention_minutes=30,
-            max_age_seconds=1800
+            max_age_seconds=1800,
         )
 
         assert config.delete_existing is False
@@ -101,7 +98,7 @@ class TestNATSConfig:
             stream_name="test_stream",
             subject_prefix="test.subject",
             retention_minutes=30,
-            max_age_seconds=1800
+            max_age_seconds=1800,
         )
 
         assert config.max_age_timedelta == timedelta(seconds=1800)
@@ -113,7 +110,7 @@ class TestNATSConfig:
             stream_name="test_stream",
             subject_prefix="test.subject",
             retention_minutes=30,
-            max_age_seconds=0
+            max_age_seconds=0,
         )
 
         assert config.max_age_timedelta is None
@@ -125,7 +122,7 @@ class TestNATSConfig:
             stream_name="test_stream",
             subject_prefix="test.subject",
             retention_minutes=30,
-            max_age_seconds=-100
+            max_age_seconds=-100,
         )
 
         assert config.max_age_timedelta is None
@@ -161,14 +158,14 @@ class TestLoadNATSConfig:
         monkeypatch.delenv("JS_STREAM_NAME", raising=False)
 
         # Create temporary config file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             config_data = {
                 "urls": "nats://custom:4222",
                 "stream_name": "custom_stream",
                 "subject_prefix": "custom.subject",
                 "retention_minutes": 60,
                 "max_age_seconds": 3600,
-                "delete_existing": True
+                "delete_existing": True,
             }
             json.dump(config_data, f)
             config_path = Path(f.name)
@@ -194,11 +191,11 @@ class TestLoadNATSConfig:
         monkeypatch.setenv("NATS_DELETE_EXISTING", "true")
 
         # Create config file with different values
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             config_data = {
                 "urls": "nats://file:4222",
                 "stream_name": "file_stream",
-                "retention_minutes": 30
+                "retention_minutes": 30,
             }
             json.dump(config_data, f)
             config_path = Path(f.name)
@@ -222,7 +219,7 @@ class TestLoadNATSConfig:
         config = load_nats_config(
             stream_name="arg_stream",
             subject_prefix="arg.subject",
-            config_path=Path("/tmp/nonexistent.json")
+            config_path=Path("/tmp/nonexistent.json"),
         )
 
         # Arguments should win
@@ -231,7 +228,7 @@ class TestLoadNATSConfig:
 
     def test_load_config_invalid_json(self):
         """Should raise ValueError on invalid JSON."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("{ invalid json }")
             config_path = Path(f.name)
 

@@ -1,4 +1,5 @@
 """Tests for RateLimiter class in services/gateway/app.py"""
+
 from freezegun import freeze_time
 from services.gateway.app import RateLimiter
 
@@ -64,7 +65,9 @@ class TestRateLimiter:
                 limiter.is_allowed()
 
             # Wait a long time (would refill way more than burst)
-            frozen_time.move_to("2021-01-01 00:01:00")  # 60 seconds = 600 tokens theoretically
+            frozen_time.move_to(
+                "2021-01-01 00:01:00"
+            )  # 60 seconds = 600 tokens theoretically
 
             # Should still only have burst tokens available
             for _ in range(20):

@@ -1,4 +1,5 @@
 """Tests for Pydantic models in services/common/models.py"""
+
 import pytest
 from pydantic import ValidationError
 from services.common.models import (
@@ -15,7 +16,7 @@ from services.common.models import (
     PongMessage,
     ErrorMessage,
     create_tick,
-    create_snapshot
+    create_snapshot,
 )
 
 
@@ -50,7 +51,7 @@ class TestTickFields:
         fields = TickFields(
             last_trade=TradeData(px=50000.0, qty=0.5),
             best_bid=TradeData(px=49995.0, qty=1.2),
-            best_ask=TradeData(px=50005.0, qty=0.8)
+            best_ask=TradeData(px=50005.0, qty=0.8),
         )
         assert fields.last_trade.px == 50000.0
         assert fields.best_bid.px == 49995.0
@@ -92,7 +93,7 @@ class TestTick:
             seq=100,
             ts_event=1000000000,
             ts_ingest=1000000001,
-            fields=TickFields()
+            fields=TickFields(),
         )
         assert tick.v == 1
         assert tick.type == "tick"
@@ -112,7 +113,7 @@ class TestSnapshot:
             product="BTC-USD",
             seq=12345,
             ts_snapshot=1609459200000000000,
-            state={"price": 50000.0}
+            state={"price": 50000.0},
         )
         assert snapshot.v == 1
         assert snapshot.type == "snapshot"
@@ -123,10 +124,7 @@ class TestSnapshot:
     def test_snapshot_empty_state(self):
         """Should allow empty state dict."""
         snapshot = Snapshot(
-            product="ETH-USD",
-            seq=100,
-            ts_snapshot=1000000000,
-            state={}
+            product="ETH-USD", seq=100, ts_snapshot=1000000000, state={}
         )
         assert snapshot.state == {}
 
@@ -136,10 +134,7 @@ class TestSubscribeRequest:
 
     def test_subscribe_request_valid(self):
         """Should create valid SubscribeRequest."""
-        req = SubscribeRequest(
-            products=["BTC-USD", "ETH-USD"],
-            want_snapshot=True
-        )
+        req = SubscribeRequest(products=["BTC-USD", "ETH-USD"], want_snapshot=True)
         assert req.op == "subscribe"
         assert req.products == ["BTC-USD", "ETH-USD"]
         assert req.want_snapshot is True
@@ -147,19 +142,16 @@ class TestSubscribeRequest:
     def test_subscribe_request_with_from_seq(self):
         """Should accept from_seq parameter."""
         req = SubscribeRequest(
-            products=["BTC-USD"],
-            from_seq={"BTC-USD": 12345},
-            want_snapshot=False
+            products=["BTC-USD"], from_seq={"BTC-USD": 12345}, want_snapshot=False
         )
         assert req.from_seq == {"BTC-USD": 12345}
         assert req.want_snapshot is False
 
     def test_subscribe_request_alias_operation(self):
         """Should accept 'operation' alias for 'op'."""
-        req = SubscribeRequest.model_validate({
-            "operation": "subscribe",
-            "products": ["BTC-USD"]
-        })
+        req = SubscribeRequest.model_validate(
+            {"operation": "subscribe", "products": ["BTC-USD"]}
+        )
         assert req.op == "subscribe"
 
     def test_subscribe_request_defaults(self):
@@ -181,10 +173,9 @@ class TestUnsubscribeRequest:
 
     def test_unsubscribe_request_alias(self):
         """Should accept 'operation' alias for 'op'."""
-        req = UnsubscribeRequest.model_validate({
-            "operation": "unsubscribe",
-            "products": ["ETH-USD"]
-        })
+        req = UnsubscribeRequest.model_validate(
+            {"operation": "unsubscribe", "products": ["ETH-USD"]}
+        )
         assert req.op == "unsubscribe"
 
 
@@ -199,18 +190,12 @@ class TestPingRequest:
 
     def test_ping_request_alias_operation(self):
         """Should accept 'operation' alias for 'op'."""
-        req = PingRequest.model_validate({
-            "operation": "ping",
-            "t": 1234567890
-        })
+        req = PingRequest.model_validate({"operation": "ping", "t": 1234567890})
         assert req.op == "ping"
 
     def test_ping_request_alias_timestamp(self):
         """Should accept 'timestamp' alias for 't'."""
-        req = PingRequest.model_validate({
-            "op": "ping",
-            "timestamp": 1234567890
-        })
+        req = PingRequest.model_validate({"op": "ping", "timestamp": 1234567890})
         assert req.t == 1234567890
 
 
@@ -223,7 +208,7 @@ class TestMessageModels:
             product="BTC-USD",
             seq=12345,
             ts_snapshot=1609459200000000000,
-            state={"price": 50000.0}
+            state={"price": 50000.0},
         )
         msg = SnapshotMessage(data=snapshot)
         assert msg.op == "snapshot"
@@ -249,10 +234,7 @@ class TestMessageModels:
 
     def test_pong_message_alias(self):
         """Should accept 'timestamp' alias for 't'."""
-        msg = PongMessage.model_validate({
-            "op": "pong",
-            "timestamp": 1234567890
-        })
+        msg = PongMessage.model_validate({"op": "pong", "timestamp": 1234567890})
         assert msg.t == 1234567890
 
     def test_error_message(self):
@@ -270,10 +252,7 @@ class TestHelperFunctions:
         """Should create Tick with auto-generated ts_ingest."""
         fields = TickFields(last_trade=TradeData(px=50000.0, qty=1.0))
         tick = create_tick(
-            product="BTC-USD",
-            seq=12345,
-            ts_event=1609459200000000000,
-            fields=fields
+            product="BTC-USD", seq=12345, ts_event=1609459200000000000, fields=fields
         )
 
         assert tick.product == "BTC-USD"
@@ -286,10 +265,7 @@ class TestHelperFunctions:
         """Should create Snapshot."""
         state = {"price": 50000.0, "volume": 100.0}
         snapshot = create_snapshot(
-            product="ETH-USD",
-            seq=100,
-            ts_snapshot=1609459200000000000,
-            state=state
+            product="ETH-USD", seq=100, ts_snapshot=1609459200000000000, state=state
         )
 
         assert snapshot.product == "ETH-USD"

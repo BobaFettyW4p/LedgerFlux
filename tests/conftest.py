@@ -1,4 +1,5 @@
 """Root test configuration with shared fixtures."""
+
 import asyncio
 import pytest
 from typing import Generator

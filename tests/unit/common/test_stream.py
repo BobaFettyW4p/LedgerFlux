@@ -1,4 +1,5 @@
 """Unit tests for NATSStreamManager."""
+
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -16,7 +17,7 @@ def nats_config():
         subject_prefix="test.ticks",
         retention_minutes=30,
         max_age_seconds=1800,
-        delete_existing=False
+        delete_existing=False,
     )
 
 
@@ -53,8 +54,8 @@ def sample_tick():
         fields=TickFields(
             last_trade=TradeData(px=50000.0, qty=0.5),
             best_bid=TradeData(px=49995.0, qty=1.2),
-            best_ask=TradeData(px=50005.0, qty=0.8)
-        )
+            best_ask=TradeData(px=50005.0, qty=0.8),
+        ),
     )
 
 
@@ -69,8 +70,8 @@ def sample_snapshot():
         ts_snapshot=1609459200000000000,
         state={
             "last_trade": {"px": 50000.0, "qty": 0.5},
-            "best_bid": {"px": 49995.0, "qty": 1.2}
-        }
+            "best_bid": {"px": 49995.0, "qty": 1.2},
+        },
     )
 
 
@@ -86,7 +87,9 @@ class TestNATSStreamManager:
         assert manager.subscriptions == {}
         assert manager.fetch_tasks == {}
 
-    async def test_connect_success(self, nats_config, mock_nats_connection, mock_jetstream):
+    async def test_connect_success(
+        self, nats_config, mock_nats_connection, mock_jetstream
+    ):
         """Test successful connection."""
         mock_nats = MagicMock()
         mock_nats.connect = AsyncMock(return_value=mock_nats_connection)
@@ -95,7 +98,10 @@ class TestNATSStreamManager:
 
         manager = NATSStreamManager(nats_config)
 
-        with patch.dict('sys.modules', {'nats': mock_nats, 'nats.js': MagicMock(), 'nats.js.api': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"nats": mock_nats, "nats.js": MagicMock(), "nats.js.api": MagicMock()},
+        ):
             await manager.connect()
 
         assert manager.nats_connection == mock_nats_connection
@@ -103,12 +109,16 @@ class TestNATSStreamManager:
         mock_nats.connect.assert_called_once()
         mock_jetstream.stream_info.assert_called_once_with(nats_config.stream_name)
 
-    async def test_connect_creates_stream_when_not_exists(self, nats_config, mock_nats_connection, mock_jetstream):
+    async def test_connect_creates_stream_when_not_exists(
+        self, nats_config, mock_nats_connection, mock_jetstream
+    ):
         """Test stream creation when it doesn't exist."""
         mock_nats = MagicMock()
         mock_nats.connect = AsyncMock(return_value=mock_nats_connection)
         mock_nats_connection.jetstream = MagicMock(return_value=mock_jetstream)
-        mock_jetstream.stream_info = AsyncMock(side_effect=Exception("Stream not found"))
+        mock_jetstream.stream_info = AsyncMock(
+            side_effect=Exception("Stream not found")
+        )
 
         mock_stream_config = MagicMock()
         mock_jsapi = MagicMock()
@@ -117,16 +127,23 @@ class TestNATSStreamManager:
         manager = NATSStreamManager(nats_config)
 
         # Need to patch before importing happens inside connect()
-        with patch.dict('sys.modules', {'nats': mock_nats, 'nats.js': MagicMock(), 'nats.js.api': mock_jsapi}):
+        with patch.dict(
+            "sys.modules",
+            {"nats": mock_nats, "nats.js": MagicMock(), "nats.js.api": mock_jsapi},
+        ):
             await manager.connect()
             # Verify StreamConfig was called inside the patched context
-            assert mock_jsapi.StreamConfig.call_count >= 0  # May be called if stream doesn't exist
+            assert (
+                mock_jsapi.StreamConfig.call_count >= 0
+            )  # May be called if stream doesn't exist
 
         assert manager.nats_connection == mock_nats_connection
         # Verify add_stream was called
         mock_jetstream.add_stream.assert_called_once()
 
-    async def test_connect_deletes_existing_stream(self, mock_nats_connection, mock_jetstream):
+    async def test_connect_deletes_existing_stream(
+        self, mock_nats_connection, mock_jetstream
+    ):
         """Test stream deletion when delete_existing is True."""
         config = NATSConfig(
             urls="nats://localhost:4222",
@@ -134,13 +151,15 @@ class TestNATSStreamManager:
             subject_prefix="test.ticks",
             retention_minutes=30,
             max_age_seconds=1800,
-            delete_existing=True
+            delete_existing=True,
         )
 
         mock_nats = MagicMock()
         mock_nats.connect = AsyncMock(return_value=mock_nats_connection)
         mock_nats_connection.jetstream = MagicMock(return_value=mock_jetstream)
-        mock_jetstream.stream_info = AsyncMock(side_effect=Exception("Stream not found"))
+        mock_jetstream.stream_info = AsyncMock(
+            side_effect=Exception("Stream not found")
+        )
         mock_jetstream.delete_stream = AsyncMock()
 
         mock_stream_config = MagicMock()
@@ -149,12 +168,17 @@ class TestNATSStreamManager:
 
         manager = NATSStreamManager(config)
 
-        with patch.dict('sys.modules', {'nats': mock_nats, 'nats.js': MagicMock(), 'nats.js.api': mock_jsapi}):
+        with patch.dict(
+            "sys.modules",
+            {"nats": mock_nats, "nats.js": MagicMock(), "nats.js.api": mock_jsapi},
+        ):
             await manager.connect()
 
         mock_jetstream.delete_stream.assert_called_once_with(config.stream_name)
 
-    async def test_connect_retry_on_failure(self, nats_config, mock_nats_connection, mock_jetstream):
+    async def test_connect_retry_on_failure(
+        self, nats_config, mock_nats_connection, mock_jetstream
+    ):
         """Test connection retry on failure."""
         mock_nats = MagicMock()
         # First two attempts fail, third succeeds
@@ -162,7 +186,7 @@ class TestNATSStreamManager:
             side_effect=[
                 Exception("Connection failed"),
                 Exception("Connection failed"),
-                mock_nats_connection
+                mock_nats_connection,
             ]
         )
         mock_nats_connection.jetstream = MagicMock(return_value=mock_jetstream)
@@ -170,7 +194,10 @@ class TestNATSStreamManager:
 
         manager = NATSStreamManager(nats_config)
 
-        with patch.dict('sys.modules', {'nats': mock_nats, 'nats.js': MagicMock(), 'nats.js.api': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"nats": mock_nats, "nats.js": MagicMock(), "nats.js.api": MagicMock()},
+        ):
             # Use shorter timeout for testing
             await manager.connect(timeout=10.0)
 
@@ -184,17 +211,26 @@ class TestNATSStreamManager:
 
         manager = NATSStreamManager(nats_config)
 
-        with patch.dict('sys.modules', {'nats': mock_nats, 'nats.js': MagicMock(), 'nats.js.api': MagicMock()}):
+        with patch.dict(
+            "sys.modules",
+            {"nats": mock_nats, "nats.js": MagicMock(), "nats.js.api": MagicMock()},
+        ):
             with pytest.raises(ConnectionError, match="Failed to connect to NATS"):
                 await manager.connect(timeout=0.5)
 
-    async def test_connect_stream_already_exists_error(self, nats_config, mock_nats_connection, mock_jetstream):
+    async def test_connect_stream_already_exists_error(
+        self, nats_config, mock_nats_connection, mock_jetstream
+    ):
         """Test handling of stream already exists error."""
         mock_nats = MagicMock()
         mock_nats.connect = AsyncMock(return_value=mock_nats_connection)
         mock_nats_connection.jetstream = MagicMock(return_value=mock_jetstream)
-        mock_jetstream.stream_info = AsyncMock(side_effect=Exception("Stream not found"))
-        mock_jetstream.add_stream = AsyncMock(side_effect=Exception("stream name already in use"))
+        mock_jetstream.stream_info = AsyncMock(
+            side_effect=Exception("Stream not found")
+        )
+        mock_jetstream.add_stream = AsyncMock(
+            side_effect=Exception("stream name already in use")
+        )
 
         mock_stream_config = MagicMock()
         mock_jsapi = MagicMock()
@@ -202,16 +238,23 @@ class TestNATSStreamManager:
 
         manager = NATSStreamManager(nats_config)
 
-        with patch.dict('sys.modules', {'nats': mock_nats, 'nats.js': MagicMock(), 'nats.js.api': mock_jsapi}):
+        with patch.dict(
+            "sys.modules",
+            {"nats": mock_nats, "nats.js": MagicMock(), "nats.js.api": mock_jsapi},
+        ):
             # Should not raise - already exists is handled
             await manager.connect()
 
-    async def test_connect_stream_creation_fails(self, nats_config, mock_nats_connection, mock_jetstream):
+    async def test_connect_stream_creation_fails(
+        self, nats_config, mock_nats_connection, mock_jetstream
+    ):
         """Test stream creation failure with non-exists error."""
         mock_nats = MagicMock()
         mock_nats.connect = AsyncMock(return_value=mock_nats_connection)
         mock_nats_connection.jetstream = MagicMock(return_value=mock_jetstream)
-        mock_jetstream.stream_info = AsyncMock(side_effect=Exception("Stream not found"))
+        mock_jetstream.stream_info = AsyncMock(
+            side_effect=Exception("Stream not found")
+        )
         mock_jetstream.add_stream = AsyncMock(side_effect=Exception("Some other error"))
 
         mock_stream_config = MagicMock()
@@ -220,7 +263,10 @@ class TestNATSStreamManager:
 
         manager = NATSStreamManager(nats_config)
 
-        with patch.dict('sys.modules', {'nats': mock_nats, 'nats.js': MagicMock(), 'nats.js.api': mock_jsapi}):
+        with patch.dict(
+            "sys.modules",
+            {"nats": mock_nats, "nats.js": MagicMock(), "nats.js.api": mock_jsapi},
+        ):
             with pytest.raises(Exception, match="Some other error"):
                 await manager.connect()
 
@@ -284,7 +330,9 @@ class TestNATSStreamManager:
         with pytest.raises(RuntimeError, match="JetStream is not connected"):
             await manager.publish_snapshot(sample_snapshot)
 
-    async def test_subscribe_to_shard_with_consumer_name(self, nats_config, mock_jetstream):
+    async def test_subscribe_to_shard_with_consumer_name(
+        self, nats_config, mock_jetstream
+    ):
         """Test subscribing to a shard with consumer name."""
         manager = NATSStreamManager(nats_config)
         manager.jetstream = mock_jetstream
@@ -299,13 +347,12 @@ class TestNATSStreamManager:
             coro.close()
             return MagicMock()
 
-        with patch('asyncio.create_task', side_effect=create_task_side_effect):
+        with patch("asyncio.create_task", side_effect=create_task_side_effect):
             await manager.subscribe_to_shard(0, callback, consumer_name="test-consumer")
 
             expected_subject = f"{nats_config.subject_prefix}.0"
             mock_jetstream.pull_subscribe.assert_called_once_with(
-                expected_subject,
-                durable="test-consumer"
+                expected_subject, durable="test-consumer"
             )
             assert manager.subscriptions[0] == mock_sub
             assert 0 in manager.fetch_tasks
@@ -325,7 +372,7 @@ class TestNATSStreamManager:
             coro.close()
             return MagicMock()
 
-        with patch('asyncio.create_task', side_effect=create_task_side_effect):
+        with patch("asyncio.create_task", side_effect=create_task_side_effect):
             await manager.subscribe_to_shard(0, callback)
 
             expected_subject = f"{nats_config.subject_prefix}.0"
@@ -351,12 +398,7 @@ class TestNATSStreamManager:
 
         mock_sub = AsyncMock()
         # Return messages once, then raise CancelledError to stop the loop
-        mock_sub.fetch = AsyncMock(
-            side_effect=[
-                [mock_msg],
-                asyncio.CancelledError()
-            ]
-        )
+        mock_sub.fetch = AsyncMock(side_effect=[[mock_msg], asyncio.CancelledError()])
 
         callback = AsyncMock()
 
@@ -376,7 +418,7 @@ class TestNATSStreamManager:
             side_effect=[
                 asyncio.TimeoutError(),
                 asyncio.TimeoutError(),
-                asyncio.CancelledError()
+                asyncio.CancelledError(),
             ]
         )
 
@@ -397,12 +439,7 @@ class TestNATSStreamManager:
         mock_msg.ack = AsyncMock()
 
         mock_sub = AsyncMock()
-        mock_sub.fetch = AsyncMock(
-            side_effect=[
-                [mock_msg],
-                asyncio.CancelledError()
-            ]
-        )
+        mock_sub.fetch = AsyncMock(side_effect=[[mock_msg], asyncio.CancelledError()])
 
         # Callback raises error
         callback = AsyncMock(side_effect=Exception("Processing error"))
@@ -422,12 +459,7 @@ class TestNATSStreamManager:
         mock_msg.ack = AsyncMock()
 
         mock_sub = AsyncMock()
-        mock_sub.fetch = AsyncMock(
-            side_effect=[
-                [mock_msg],
-                asyncio.CancelledError()
-            ]
-        )
+        mock_sub.fetch = AsyncMock(side_effect=[[mock_msg], asyncio.CancelledError()])
 
         callback = AsyncMock()
 
@@ -457,7 +489,7 @@ class TestNATSStreamManager:
 
         callback = AsyncMock()
 
-        with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
             with pytest.raises(asyncio.CancelledError):
                 await manager._fetch_messages(mock_sub, callback, 0)
 
@@ -465,7 +497,9 @@ class TestNATSStreamManager:
             assert mock_sleep.call_count >= 1
             mock_sleep.assert_any_call(1)
 
-    async def test_get_latest_messages_success(self, nats_config, mock_jetstream, sample_tick):
+    async def test_get_latest_messages_success(
+        self, nats_config, mock_jetstream, sample_tick
+    ):
         """Test getting latest messages."""
         manager = NATSStreamManager(nats_config)
         manager.jetstream = mock_jetstream
@@ -488,7 +522,7 @@ class TestNATSStreamManager:
         mock_jsapi.DeliverPolicy = MagicMock()
         mock_jsapi.DeliverPolicy.LAST_PER_SUBJECT = "LAST_PER_SUBJECT"
 
-        with patch.dict('sys.modules', {'nats.js.api': mock_jsapi}):
+        with patch.dict("sys.modules", {"nats.js.api": mock_jsapi}):
             result = await manager.get_latest_messages(0, count=10)
 
         assert len(result) == 1
@@ -508,11 +542,13 @@ class TestNATSStreamManager:
         manager = NATSStreamManager(nats_config)
         manager.jetstream = mock_jetstream
 
-        mock_jetstream.pull_subscribe = AsyncMock(side_effect=Exception("Subscription error"))
+        mock_jetstream.pull_subscribe = AsyncMock(
+            side_effect=Exception("Subscription error")
+        )
 
         mock_jsapi = MagicMock()
 
-        with patch.dict('sys.modules', {'nats.js.api': mock_jsapi}):
+        with patch.dict("sys.modules", {"nats.js.api": mock_jsapi}):
             result = await manager.get_latest_messages(0)
 
         assert result == []
@@ -523,19 +559,20 @@ class TestNATSStreamManager:
 
         # Clear any existing nats modules and make import fail
         import sys
+
         old_modules = {}
         for key in list(sys.modules.keys()):
-            if key.startswith('nats'):
+            if key.startswith("nats"):
                 old_modules[key] = sys.modules.pop(key, None)
 
         try:
             # Make import of nats fail
             def mock_import(name, *args, **kwargs):
-                if name == 'nats' or name.startswith('nats.'):
+                if name == "nats" or name.startswith("nats."):
                     raise ImportError(f"No module named '{name}'")
                 return __builtins__.__import__(name, *args, **kwargs)
 
-            with patch('builtins.__import__', side_effect=mock_import):
+            with patch("builtins.__import__", side_effect=mock_import):
                 with pytest.raises(ImportError, match="nats-py is required"):
                     await manager.connect()
         finally:
@@ -549,10 +586,10 @@ class TestNATSStreamManager:
 
         # Make import of nats.js.api fail
         def mock_import(name, *args, **kwargs):
-            if name == 'nats.js.api' or 'nats.js.api' in name:
+            if name == "nats.js.api" or "nats.js.api" in name:
                 raise ImportError(f"No module named '{name}'")
             return __builtins__.__import__(name, *args, **kwargs)
 
-        with patch('builtins.__import__', side_effect=mock_import):
+        with patch("builtins.__import__", side_effect=mock_import):
             with pytest.raises(ImportError, match="nats-py is required"):
                 await manager.get_latest_messages(0)

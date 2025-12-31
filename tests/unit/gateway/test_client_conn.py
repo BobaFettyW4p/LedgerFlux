@@ -1,4 +1,5 @@
 """Tests for ClientConnection class in services/gateway/app.py"""
+
 import pytest
 import json
 from unittest.mock import AsyncMock
@@ -27,7 +28,9 @@ class TestClientConnection:
         """Create ClientConnection instance."""
         return ClientConnection(mock_websocket, rate_limiter)
 
-    def test_client_connection_initialization(self, client, mock_websocket, rate_limiter):
+    def test_client_connection_initialization(
+        self, client, mock_websocket, rate_limiter
+    ):
         """Should initialize with correct attributes."""
         assert client.websocket == mock_websocket
         assert client.rate_limiter == rate_limiter

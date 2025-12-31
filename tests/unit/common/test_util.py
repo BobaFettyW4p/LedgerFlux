@@ -1,4 +1,5 @@
 """Tests for utility functions in services/common/util.py"""
+
 import pytest
 from services.common.util import (
     shard_index,
@@ -6,7 +7,7 @@ from services.common.util import (
     stable_hash,
     get_shard_subject,
     validate_product_list,
-    format_quantity
+    format_quantity,
 )
 
 

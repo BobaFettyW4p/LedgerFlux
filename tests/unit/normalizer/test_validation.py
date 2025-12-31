@@ -1,4 +1,5 @@
 """Tests for validation logic in services/normalizer/app.py"""
+
 import pytest
 from services.normalizer.app import Normalizer
 from services.common.models import Tick, TickFields, TradeData
@@ -15,7 +16,7 @@ class TestNormalizerValidation:
             "num_shards": 4,
             "input_stream": "market.ticks",
             "output_stream": "market.ticks",
-            "stream_name": "market_ticks"
+            "stream_name": "market_ticks",
         }
         return Normalizer(config)
 
@@ -30,8 +31,8 @@ class TestNormalizerValidation:
             fields=TickFields(
                 last_trade=TradeData(px=50000.0, qty=0.5),
                 best_bid=TradeData(px=49995.0, qty=1.2),
-                best_ask=TradeData(px=50005.0, qty=0.8)
-            )
+                best_ask=TradeData(px=50005.0, qty=0.8),
+            ),
         )
 
     def test_valid_tick(self, normalizer, valid_tick):
@@ -45,7 +46,7 @@ class TestNormalizerValidation:
             seq=12345,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(last_trade=TradeData(px=50000.0, qty=0.5))
+            fields=TickFields(last_trade=TradeData(px=50000.0, qty=0.5)),
         )
 
         assert normalizer._validate_tick(tick) is False
@@ -57,7 +58,7 @@ class TestNormalizerValidation:
             seq=12345,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(last_trade=TradeData(px=-100.0, qty=0.5))
+            fields=TickFields(last_trade=TradeData(px=-100.0, qty=0.5)),
         )
 
         assert normalizer._validate_tick(tick) is False
@@ -69,7 +70,7 @@ class TestNormalizerValidation:
             seq=12345,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(last_trade=TradeData(px=0.0, qty=0.5))
+            fields=TickFields(last_trade=TradeData(px=0.0, qty=0.5)),
         )
 
         assert normalizer._validate_tick(tick) is False
@@ -83,8 +84,8 @@ class TestNormalizerValidation:
             ts_ingest=1609459200100000000,
             fields=TickFields(
                 last_trade=TradeData(px=50000.0, qty=0.5),
-                best_bid=TradeData(px=-100.0, qty=1.2)
-            )
+                best_bid=TradeData(px=-100.0, qty=1.2),
+            ),
         )
 
         assert normalizer._validate_tick(tick) is False
@@ -96,9 +97,7 @@ class TestNormalizerValidation:
             seq=12345,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(
-                best_bid=TradeData(px=0.0, qty=1.2)
-            )
+            fields=TickFields(best_bid=TradeData(px=0.0, qty=1.2)),
         )
 
         assert normalizer._validate_tick(tick) is False
@@ -112,8 +111,8 @@ class TestNormalizerValidation:
             ts_ingest=1609459200100000000,
             fields=TickFields(
                 last_trade=TradeData(px=50000.0, qty=0.5),
-                best_ask=TradeData(px=-100.0, qty=0.8)
-            )
+                best_ask=TradeData(px=-100.0, qty=0.8),
+            ),
         )
 
         assert normalizer._validate_tick(tick) is False
@@ -128,8 +127,8 @@ class TestNormalizerValidation:
             fields=TickFields(
                 last_trade=TradeData(px=50000.0, qty=0.5),
                 best_bid=TradeData(px=50000.0, qty=1.2),
-                best_ask=TradeData(px=50000.0, qty=0.8)
-            )
+                best_ask=TradeData(px=50000.0, qty=0.8),
+            ),
         )
 
         assert normalizer._validate_tick(tick) is False
@@ -144,8 +143,8 @@ class TestNormalizerValidation:
             fields=TickFields(
                 last_trade=TradeData(px=50000.0, qty=0.5),
                 best_bid=TradeData(px=50010.0, qty=1.2),  # Bid higher than ask
-                best_ask=TradeData(px=50005.0, qty=0.8)
-            )
+                best_ask=TradeData(px=50005.0, qty=0.8),
+            ),
         )
 
         assert normalizer._validate_tick(tick) is False
@@ -160,8 +159,8 @@ class TestNormalizerValidation:
             fields=TickFields(
                 last_trade=TradeData(px=50000.0, qty=0.5),
                 best_bid=TradeData(px=49995.0, qty=1.2),
-                best_ask=TradeData(px=50005.0, qty=0.8)
-            )
+                best_ask=TradeData(px=50005.0, qty=0.8),
+            ),
         )
 
         assert normalizer._validate_tick(tick) is True
@@ -173,7 +172,7 @@ class TestNormalizerValidation:
             seq=100,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(last_trade=TradeData(px=50000.0, qty=0.5))
+            fields=TickFields(last_trade=TradeData(px=50000.0, qty=0.5)),
         )
 
         tick2 = Tick(
@@ -181,7 +180,7 @@ class TestNormalizerValidation:
             seq=101,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(last_trade=TradeData(px=50001.0, qty=0.5))
+            fields=TickFields(last_trade=TradeData(px=50001.0, qty=0.5)),
         )
 
         # First tick
@@ -200,7 +199,7 @@ class TestNormalizerValidation:
             seq=100,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(last_trade=TradeData(px=50000.0, qty=0.5))
+            fields=TickFields(last_trade=TradeData(px=50000.0, qty=0.5)),
         )
         normalizer._validate_tick(tick1)
 
@@ -210,7 +209,7 @@ class TestNormalizerValidation:
             seq=50,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(last_trade=TradeData(px=50001.0, qty=0.5))
+            fields=TickFields(last_trade=TradeData(px=50001.0, qty=0.5)),
         )
 
         # Should still return True (validation passes, just logs warning)
@@ -223,7 +222,7 @@ class TestNormalizerValidation:
             seq=12345,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(last_trade=TradeData(px=3000.0, qty=2.5))
+            fields=TickFields(last_trade=TradeData(px=3000.0, qty=2.5)),
         )
 
         assert normalizer._validate_tick(tick) is True
@@ -235,7 +234,7 @@ class TestNormalizerValidation:
             seq=12345,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(best_bid=TradeData(px=100.0, qty=50.0))
+            fields=TickFields(best_bid=TradeData(px=100.0, qty=50.0)),
         )
 
         assert normalizer._validate_tick(tick) is True
@@ -247,7 +246,7 @@ class TestNormalizerValidation:
             seq=12345,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(best_ask=TradeData(px=1.50, qty=1000.0))
+            fields=TickFields(best_ask=TradeData(px=1.50, qty=1000.0)),
         )
 
         assert normalizer._validate_tick(tick) is True
@@ -259,7 +258,7 @@ class TestNormalizerValidation:
             seq=100,
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(last_trade=TradeData(px=50000.0, qty=0.5))
+            fields=TickFields(last_trade=TradeData(px=50000.0, qty=0.5)),
         )
 
         tick_eth = Tick(
@@ -267,7 +266,7 @@ class TestNormalizerValidation:
             seq=50,  # Lower sequence than BTC
             ts_event=1609459200000000000,
             ts_ingest=1609459200100000000,
-            fields=TickFields(last_trade=TradeData(px=3000.0, qty=1.0))
+            fields=TickFields(last_trade=TradeData(px=3000.0, qty=1.0)),
         )
 
         assert normalizer._validate_tick(tick_btc) is True

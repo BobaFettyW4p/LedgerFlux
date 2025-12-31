@@ -1,4 +1,5 @@
 """Unit test specific fixtures."""
+
 import pytest
 from datetime import datetime
 from services.common.models import Tick
@@ -17,8 +18,8 @@ def sample_tick_data():
         "fields": {
             "last_trade": {"px": 50000.0, "qty": 0.5},
             "best_bid": {"px": 49995.0, "qty": 1.2},
-            "best_ask": {"px": 50005.0, "qty": 0.8}
-        }
+            "best_ask": {"px": 50005.0, "qty": 0.8},
+        },
     }
 
 
@@ -41,7 +42,7 @@ def sample_coinbase_ticker():
         "best_bid_size": "1.2",
         "best_ask": "50005.00",
         "best_ask_size": "0.8",
-        "time": "2021-01-01T00:00:00.000000Z"
+        "time": "2021-01-01T00:00:00.000000Z",
     }
 
 
@@ -53,5 +54,5 @@ def sample_snapshot_state():
         "best_bid": {"px": 49995.0, "qty": 1.2, "ts": 1609459200000000000},
         "best_ask": {"px": 50005.0, "qty": 0.8, "ts": 1609459200000000000},
         "last_seq": 12345,
-        "last_update": datetime(2021, 1, 1)
+        "last_update": datetime(2021, 1, 1),
     }

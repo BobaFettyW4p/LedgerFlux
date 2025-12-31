@@ -2,7 +2,9 @@ from datetime import datetime
 from typing import Dict, Optional, Any
 from pydantic import BaseModel, Field, AliasChoices, ConfigDict
 
-'''canonical classes for all services, derived from pydantic.BaseModel'''
+"""canonical classes for all services, derived from pydantic.BaseModel"""
+
+
 class TradeData(BaseModel):
     px: float = Field(description="Price")
     qty: float = Field(description="Quantity")
@@ -33,7 +35,6 @@ class Snapshot(BaseModel):
     state: Dict[str, Any] = Field(description="Market state data")
 
 
-
 class SubscribeRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -43,7 +44,9 @@ class SubscribeRequest(BaseModel):
         validation_alias=AliasChoices("op", "operation"),
     )
     products: list[str] = Field(description="List of products to subscribe to")
-    from_seq: Optional[Dict[str, int]] = Field(None, description="Starting sequence per product")
+    from_seq: Optional[Dict[str, int]] = Field(
+        None, description="Starting sequence per product"
+    )
     want_snapshot: bool = Field(True, description="Whether to send initial snapshot")
 
 
@@ -122,23 +125,18 @@ class ErrorMessage(BaseModel):
     code: str = Field(description="Error code")
     msg: str = Field(description="Error message")
 
-'''helper functions for creating ticks and snapshots'''
+
+"""helper functions for creating ticks and snapshots"""
+
 
 def create_tick(product: str, seq: int, ts_event: int, fields: TickFields) -> Tick:
     ts_ingest = int(datetime.now().timestamp() * 1_000_000_000)
     return Tick(
-        product=product,
-        seq=seq,
-        ts_event=ts_event,
-        ts_ingest=ts_ingest,
-        fields=fields
+        product=product, seq=seq, ts_event=ts_event, ts_ingest=ts_ingest, fields=fields
     )
 
 
-def create_snapshot(product: str, seq: int, ts_snapshot: int, state: Dict[str, Any]) -> Snapshot:
-    return Snapshot(
-        product=product,
-        seq=seq,
-        ts_snapshot=ts_snapshot,
-        state=state
-    )
+def create_snapshot(
+    product: str, seq: int, ts_snapshot: int, state: Dict[str, Any]
+) -> Snapshot:
+    return Snapshot(product=product, seq=seq, ts_snapshot=ts_snapshot, state=state)

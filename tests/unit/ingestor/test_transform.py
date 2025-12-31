@@ -1,4 +1,5 @@
 """Tests for Coinbase data transformation in services/ingestor/app.py"""
+
 from datetime import datetime, timezone
 from services.ingestor.app import transform_coinbase_ticker
 from services.common.models import Tick
@@ -29,7 +30,7 @@ class TestCoinbaseTransform:
             "product_id": "ETH-USD",
             "price": "3000.00",
             "last_size": "2.5",
-            "time": "2021-01-01T00:00:00.000000Z"
+            "time": "2021-01-01T00:00:00.000000Z",
         }
 
         tick = transform_coinbase_ticker(partial_ticker)
@@ -52,7 +53,7 @@ class TestCoinbaseTransform:
             "last_size": "10.0",
             "best_bid": "99.50",
             "best_bid_size": "50.0",
-            "time": "2021-01-01T00:00:00.000000Z"
+            "time": "2021-01-01T00:00:00.000000Z",
         }
 
         tick = transform_coinbase_ticker(ticker)
@@ -73,7 +74,7 @@ class TestCoinbaseTransform:
             "last_size": "1000.0",
             "best_ask": "1.51",
             "best_ask_size": "2000.0",
-            "time": "2021-01-01T00:00:00.000000Z"
+            "time": "2021-01-01T00:00:00.000000Z",
         }
 
         tick = transform_coinbase_ticker(ticker)
@@ -92,7 +93,7 @@ class TestCoinbaseTransform:
             "product_id": "BTC-USD",
             "price": "50000.00",
             "last_size": "0.1",
-            "time": "2021-01-01T12:30:45.123456Z"
+            "time": "2021-01-01T12:30:45.123456Z",
         }
 
         tick = transform_coinbase_ticker(ticker)
@@ -112,7 +113,7 @@ class TestCoinbaseTransform:
             "product_id": "BTC-USD",
             "price": "50000.00",
             "last_size": "0.1",
-            "time": "2021-01-01T00:00:00.000000Z"
+            "time": "2021-01-01T00:00:00.000000Z",
         }
 
         tick = transform_coinbase_ticker(ticker)
@@ -129,7 +130,7 @@ class TestCoinbaseTransform:
             "product_id": "ETH-USD",
             "price": "3000.00",
             "last_size": "1.0",
-            "time": "2021-01-01T00:00:00.000000Z"
+            "time": "2021-01-01T00:00:00.000000Z",
         }
 
         tick = transform_coinbase_ticker(ticker)
@@ -143,7 +144,7 @@ class TestCoinbaseTransform:
             "product_id": "BTC-USD",
             "price": "50000.00",
             "last_size": "0.1",
-            "time": "2021-01-01T00:00:00.000000Z"
+            "time": "2021-01-01T00:00:00.000000Z",
         }
 
         tick = transform_coinbase_ticker(ticker)
@@ -161,7 +162,7 @@ class TestCoinbaseTransform:
             "best_bid_size": "1.11",
             "best_ask": "50000.01",
             "best_ask_size": "2.22",
-            "time": "2021-01-01T00:00:00.000000Z"
+            "time": "2021-01-01T00:00:00.000000Z",
         }
 
         tick = transform_coinbase_ticker(ticker)
@@ -181,7 +182,7 @@ class TestCoinbaseTransform:
             "product_id": "BTC-USD",
             "price": "50000.00",
             "last_size": "0.1",
-            "time": "2021-01-01T00:00:00.000000Z"
+            "time": "2021-01-01T00:00:00.000000Z",
         }
 
         tick = transform_coinbase_ticker(ticker)
@@ -195,7 +196,7 @@ class TestCoinbaseTransform:
             "type": "ticker",
             "sequence": 1,
             "product_id": "BTC-USD",
-            "time": "2021-01-01T00:00:00.000000Z"
+            "time": "2021-01-01T00:00:00.000000Z",
         }
 
         tick = transform_coinbase_ticker(ticker)
