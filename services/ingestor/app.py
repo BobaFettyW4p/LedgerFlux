@@ -89,7 +89,7 @@ class CoinbaseIngester:
         # Set build info for metrics
         set_build_info("ingestor", version="0.1.0")
 
-        self.stats = {
+        self.stats: Dict[str, Any] = {
             "messages_received": 0,
             "messages_published": 0,
             "errors": 0,
@@ -134,7 +134,13 @@ class CoinbaseIngester:
                 try:
                     async for message in websocket:
                         try:
-                            await self._process_message(message)
+                            # Convert bytes to str if needed
+                            msg_str = (
+                                message.decode("utf-8")
+                                if isinstance(message, bytes)
+                                else message
+                            )
+                            await self._process_message(msg_str)
                         except Exception as e:
                             print(f"Error processing message: {e}")
                             self.stats["errors"] += 1

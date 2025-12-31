@@ -11,14 +11,14 @@ class TradeData(BaseModel):
 
 
 class TickFields(BaseModel):
-    last_trade: Optional[TradeData] = Field(None, description="Last trade data")
-    best_bid: Optional[TradeData] = Field(None, description="Best bid data")
-    best_ask: Optional[TradeData] = Field(None, description="Best ask data")
+    last_trade: Optional[TradeData] = Field(default=None, description="Last trade data")
+    best_bid: Optional[TradeData] = Field(default=None, description="Best bid data")
+    best_ask: Optional[TradeData] = Field(default=None, description="Best ask data")
 
 
 class Tick(BaseModel):
-    v: int = Field(1, description="Version")
-    type: str = Field("tick", description="Message type")
+    v: int = Field(default=1, description="Version")
+    type: str = Field(default="tick", description="Message type")
     product: str = Field(description="Product symbol (e.g., BTC-USD)")
     seq: int = Field(description="Sequence number")
     ts_event: int = Field(description="Event timestamp (nanoseconds)")
@@ -27,8 +27,8 @@ class Tick(BaseModel):
 
 
 class Snapshot(BaseModel):
-    v: int = Field(1, description="Version")
-    type: str = Field("snapshot", description="Message type")
+    v: int = Field(default=1, description="Version")
+    type: str = Field(default="snapshot", description="Message type")
     product: str = Field(description="Product symbol (e.g., BTC-USD)")
     seq: int = Field(description="Sequence number")
     ts_snapshot: int = Field(description="Snapshot timestamp (nanoseconds)")
@@ -39,22 +39,24 @@ class SubscribeRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     op: str = Field(
-        "subscribe",
+        default="subscribe",
         description="Operation type",
         validation_alias=AliasChoices("op", "operation"),
     )
     products: list[str] = Field(description="List of products to subscribe to")
     from_seq: Optional[Dict[str, int]] = Field(
-        None, description="Starting sequence per product"
+        default=None, description="Starting sequence per product"
     )
-    want_snapshot: bool = Field(True, description="Whether to send initial snapshot")
+    want_snapshot: bool = Field(
+        default=True, description="Whether to send initial snapshot"
+    )
 
 
 class UnsubscribeRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     op: str = Field(
-        "unsubscribe",
+        default="unsubscribe",
         description="Operation type",
         validation_alias=AliasChoices("op", "operation"),
     )
@@ -65,7 +67,7 @@ class PingRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     op: str = Field(
-        "ping",
+        default="ping",
         description="Operation type",
         validation_alias=AliasChoices("op", "operation"),
     )
@@ -77,7 +79,7 @@ class PingRequest(BaseModel):
 
 class SnapshotMessage(BaseModel):
     op: str = Field(
-        "snapshot",
+        default="snapshot",
         description="Operation type",
         validation_alias=AliasChoices("op", "operation"),
     )
@@ -86,7 +88,7 @@ class SnapshotMessage(BaseModel):
 
 class IncrMessage(BaseModel):
     op: str = Field(
-        "incr",
+        default="incr",
         description="Operation type",
         validation_alias=AliasChoices("op", "operation"),
     )
@@ -95,7 +97,7 @@ class IncrMessage(BaseModel):
 
 class RateLimitMessage(BaseModel):
     op: str = Field(
-        "rate_limit",
+        default="rate_limit",
         description="Operation type",
         validation_alias=AliasChoices("op", "operation"),
     )
@@ -106,7 +108,7 @@ class PongMessage(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     op: str = Field(
-        "pong",
+        default="pong",
         description="Operation type",
         validation_alias=AliasChoices("op", "operation"),
     )
@@ -118,7 +120,7 @@ class PongMessage(BaseModel):
 
 class ErrorMessage(BaseModel):
     op: str = Field(
-        "error",
+        default="error",
         description="Operation type",
         validation_alias=AliasChoices("op", "operation"),
     )

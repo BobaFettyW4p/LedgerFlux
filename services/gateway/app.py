@@ -48,7 +48,7 @@ class RateLimiter:
     def __init__(self, max_rate: int, burst: int):
         self.max_rate = max_rate
         self.burst = burst
-        self.tokens = burst
+        self.tokens: float = float(burst)
         self.last_update = time.time()
 
     def is_allowed(self) -> bool:
@@ -254,10 +254,10 @@ class Gateway:
                         row = await self.store.get_latest(product)
                         if row:
                             snapshot = Snapshot(
-                                product=row["product"],
-                                seq=int(row["last_seq"]),
-                                ts_snapshot=int(row["ts_snapshot"]),
-                                state=row["state"],
+                                product=row.product,
+                                seq=row.last_seq,
+                                ts_snapshot=row.ts_snapshot,
+                                state=row.state,
                             )
                             snapshot_msg = SnapshotMessage(data=snapshot)
                             await client.send_message(snapshot_msg.model_dump())
@@ -361,10 +361,10 @@ async def main() -> None:
     gateway = Gateway(config)
     try:
         await gateway.start()
-        config = uvicorn.Config(
+        server_config = uvicorn.Config(
             app=gateway.app, host="0.0.0.0", port=gateway.port, log_level="info"
         )
-        server = uvicorn.Server(config)
+        server = uvicorn.Server(server_config)
         await server.serve()
 
     except KeyboardInterrupt:

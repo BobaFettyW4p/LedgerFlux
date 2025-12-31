@@ -36,7 +36,7 @@ class Normalizer:
         )
         self.broker = NATSStreamManager(nats_config)
 
-        self.stats = {
+        self.stats: Dict[str, Any] = {
             "messages_processed": 0,
             "messages_validated": 0,
             "messages_rejected": 0,
@@ -132,10 +132,11 @@ class Normalizer:
             self.stats["messages_validated"] += 1
 
             # Print tick info
-            print(
-                f"{tick.product}: ${tick.fields.last_trade.px:,.2f} "
-                f"seq: {tick.seq} → shard: {output_shard}"
-            )
+            if tick.fields.last_trade:
+                print(
+                    f"{tick.product}: ${tick.fields.last_trade.px:,.2f} "
+                    f"seq: {tick.seq} → shard: {output_shard}"
+                )
 
             # Print stats every 50 messages
             if self.stats["messages_processed"] % 50 == 0:

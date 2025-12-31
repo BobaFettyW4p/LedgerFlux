@@ -26,4 +26,39 @@ dev = [
     "freezegun>=1.5.0",
     "httpx>=0.27.0",
     "ruff>=0.12.11",
+    "types-psycopg2>=2.9.0",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+explicit_package_bases = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR"
+
+# Core type checking (enabled)
+check_untyped_defs = true
+disallow_any_unimported = false
+disallow_subclassing_any = false
+warn_return_any = false
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unused_configs = true
+no_implicit_reexport = true
+
+# Stricter checking (disabled for now - can enable incrementally)
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+
+# Allow untyped calls for third-party libraries without stubs
+[[tool.mypy.overrides]]
+module = [
+    "nats.*",
+    "prometheus_client.*",
+    "psycopg.*",
+    "pydantic.*",
+    "fastapi.*",
+    "uvicorn.*",
+    "websockets.*",
+]
+ignore_missing_imports = true

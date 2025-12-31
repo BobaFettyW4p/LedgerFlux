@@ -109,10 +109,11 @@ class Snapshotter:
             if self._should_create_snapshot(tick.product):
                 await self._create_snapshot(tick.product)
 
-            print(
-                f"{tick.product}: ${tick.fields.last_trade.px:,.2f} "
-                f"seq: {tick.seq} (state updated)"
-            )
+            if tick.fields.last_trade:
+                print(
+                    f"{tick.product}: ${tick.fields.last_trade.px:,.2f} "
+                    f"seq: {tick.seq} (state updated)"
+                )
 
             # Print stats periodically
             if self.stats["messages_processed"] % 100 == 0:
