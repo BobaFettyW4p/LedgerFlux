@@ -37,31 +37,11 @@ htmlcov/
 .ruff_cache/
 .pyre/
 
-# IDE / editor
-.idea/
-.vscode/
-.DS_Store
-Thumbs.db
-
 # Env & direnv
 .env
 .env.*
 .envrc
 .direnv/
-
-# Docker / Compose
-docker-compose.override.yml
-*.local.yml
-*.override.yml
-docker/skaffold
-
-# Helm charts (built dependencies and packaged charts)
-charts/*/charts/*.tgz
-helm/*/charts/*.tgz
-**/charts/*.tgz
-
-# Kubernetes local artifacts
-*.kubeconfig
 
 # Logs & temp files
 *.log
