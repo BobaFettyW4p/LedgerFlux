@@ -250,7 +250,7 @@ class Snapshotter:
                 return
             except Exception as e:
                 if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s, 8s, 16s
+                    wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s, 8s, 16s
                     print(
                         f"Postgres connection attempt {attempt + 1}/{max_retries} failed: {e}"
                     )
