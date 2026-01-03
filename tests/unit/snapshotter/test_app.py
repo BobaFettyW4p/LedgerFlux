@@ -454,7 +454,9 @@ class TestSnapshotterPersistence:
 
         snapshotter = Snapshotter(snapshotter_config)
 
-        await snapshotter._init_store()
+        # Mock asyncio.sleep to avoid waiting during retries
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            await snapshotter._init_store()
 
         assert snapshotter._store_ready is False
 
