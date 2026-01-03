@@ -241,13 +241,26 @@ class Snapshotter:
             print(f"Warning: Failed to write tick history for {tick.product}: {e}")
 
     async def _init_store(self) -> None:
-        try:
-            await self.store.ensure_schema()
-            self._store_ready = True
-            print("Connected to Postgres and ensured schema")
-        except Exception as e:
-            print(f"Failed to initialize Postgres store: {e}")
-            self._store_ready = False
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                await self.store.ensure_schema()
+                self._store_ready = True
+                print("Connected to Postgres and ensured schema")
+                return
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s, 8s, 16s
+                    print(
+                        f"Postgres connection attempt {attempt + 1}/{max_retries} failed: {e}"
+                    )
+                    print(f"Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                else:
+                    print(
+                        f"Failed to initialize Postgres store after {max_retries} attempts: {e}"
+                    )
+                    self._store_ready = False
 
     async def _write_to_pg(self, product: str, state: Dict[str, Any]):
         if not self._store_ready:
