@@ -37,10 +37,10 @@ data:
             "x": 0,
             "y": 0
           },
-          "datasource": "prometheus",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "targets": [
             {
-              "datasource": "prometheus",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
               "expr": "ledgerflux_gateway_clients_connected",
               "refId": "A"
             }
@@ -92,16 +92,17 @@ data:
             "x": 6,
             "y": 0
           },
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "targets": [
             {
-              "expr": "ledgerflux_ingestor_websocket_connected",
-              "refId": "A",
-              "datasource": "prometheus"
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "ledgerflux_ingestor_websocket_connected{job=\"ingestor\"}",
+              "refId": "A"
             }
           ],
           "options": {
-            "colorMode": "background",
-            "graphMode": "none",
+            "colorMode": "value",
+            "graphMode": "area",
             "justifyMode": "auto",
             "orientation": "auto",
             "reduceOptions": {
@@ -117,13 +118,14 @@ data:
               "mappings": [
                 {
                   "type": "value",
-                  "value": "0",
-                  "text": "Disconnected"
-                },
-                {
-                  "type": "value",
-                  "value": "1",
-                  "text": "Connected"
+                  "options": {
+                    "0": {
+                      "text": "Disconnected"
+                    },
+                    "1": {
+                      "text": "Connected"
+                    }
+                  }
                 }
               ],
               "thresholds": {
@@ -131,7 +133,11 @@ data:
                 "steps": [
                   {
                     "color": "red",
-                    "value": 0
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.5
                   },
                   {
                     "color": "green",
@@ -141,8 +147,7 @@ data:
               },
               "unit": "none"
             }
-          },
-          "datasource": "prometheus"
+          }
         },
         {
           "id": 3,
@@ -159,7 +164,7 @@ data:
               "expr": "rate(ledgerflux_ingestor_ticks_received_total[1m])",
               "legendFormat": "{{product}}",
               "refId": "A",
-              "datasource": "prometheus"
+              "datasource": {"type": "prometheus", "uid": "prometheus"}
             }
           ],
           "yaxes": [
@@ -177,7 +182,7 @@ data:
           "legend": {
             "show": true
           },
-          "datasource": "prometheus"
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
         },
         {
           "id": 4,
@@ -194,7 +199,7 @@ data:
               "expr": "rate(ledgerflux_gateway_messages_sent_total[1m])",
               "legendFormat": "{{product}} - {{message_type}}",
               "refId": "A",
-              "datasource": "prometheus"
+              "datasource": {"type": "prometheus", "uid": "prometheus"}
             }
           ],
           "yaxes": [
@@ -212,7 +217,7 @@ data:
           "legend": {
             "show": true
           },
-          "datasource": "prometheus"
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
         },
         {
           "id": 5,
@@ -229,7 +234,7 @@ data:
               "expr": "rate(ledgerflux_gateway_rate_limits_total[5m])",
               "legendFormat": "Rate Limits",
               "refId": "A",
-              "datasource": "prometheus"
+              "datasource": {"type": "prometheus", "uid": "prometheus"}
             }
           ],
           "yaxes": [
@@ -280,7 +285,7 @@ data:
             "noDataState": "no_data",
             "notifications": []
           },
-          "datasource": "prometheus"
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
         },
         {
           "id": 6,
@@ -297,7 +302,7 @@ data:
               "expr": "sum by (product) (ledgerflux_ingestor_ticks_received_total)",
               "legendFormat": "{{product}}",
               "refId": "A",
-              "datasource": "prometheus"
+              "datasource": {"type": "prometheus", "uid": "prometheus"}
             }
           ],
           "yaxes": [
@@ -315,7 +320,7 @@ data:
           "legend": {
             "show": true
           },
-          "datasource": "prometheus"
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
         },
         {
           "id": 7,
@@ -332,7 +337,7 @@ data:
               "expr": "ledgerflux_gateway_active_subscriptions",
               "legendFormat": "{{product}}",
               "refId": "A",
-              "datasource": "prometheus"
+              "datasource": {"type": "prometheus", "uid": "prometheus"}
             }
           ],
           "yaxes": [
@@ -350,7 +355,7 @@ data:
           "legend": {
             "show": true
           },
-          "datasource": "prometheus"
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
         }
       ]
     }
@@ -394,13 +399,13 @@ data:
             "x": 0,
             "y": 0
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "time_series",
               "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\",\n  AVG(price) AS \"Price\"\nFROM tick_history\nWHERE\n  product = 'BTC-USD'\n  AND price IS NOT NULL\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -447,13 +452,13 @@ data:
             "x": 8,
             "y": 0
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "time_series",
               "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\",\n  AVG(price) AS \"Price\"\nFROM tick_history\nWHERE\n  product = 'ETH-USD'\n  AND price IS NOT NULL\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -500,13 +505,13 @@ data:
             "x": 16,
             "y": 0
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "time_series",
               "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\",\n  AVG(price) AS \"Price\"\nFROM tick_history\nWHERE\n  product = 'ADA-USD'\n  AND price IS NOT NULL\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -553,13 +558,13 @@ data:
             "x": 0,
             "y": 10
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "time_series",
               "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(price) AS \"Price\",\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\"\nFROM tick_history\nWHERE\n  product = 'BTC-USD'\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -586,13 +591,13 @@ data:
             "x": 8,
             "y": 10
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "time_series",
               "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(price) AS \"Price\",\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\"\nFROM tick_history\nWHERE\n  product = 'ETH-USD'\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -619,13 +624,13 @@ data:
             "x": 16,
             "y": 10
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "time_series",
               "rawSql": "SELECT\n  date_trunc('second', timestamp) AS time,\n  AVG(price) AS \"Price\",\n  AVG(bid) AS \"Bid\",\n  AVG(ask) AS \"Ask\"\nFROM tick_history\nWHERE\n  product = 'ADA-USD'\n  AND $__timeFilter(timestamp)\nGROUP BY date_trunc('second', timestamp)\nORDER BY time",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -652,13 +657,13 @@ data:
             "x": 0,
             "y": 20
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "time_series",
               "rawSql": "SELECT\n  timestamp AS time,\n  product AS metric,\n  volume AS value\nFROM tick_history\nWHERE\n  volume IS NOT NULL\n  AND $__timeFilter(timestamp)\nORDER BY timestamp",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -685,13 +690,13 @@ data:
             "x": 0,
             "y": 30
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "table",
               "rawSql": "WITH first_last AS (\n  SELECT\n    (ARRAY_AGG(price ORDER BY timestamp ASC))[1] AS first_price,\n    (ARRAY_AGG(price ORDER BY timestamp DESC))[1] AS last_price\n  FROM tick_history\n  WHERE price IS NOT NULL AND product = 'BTC-USD'\n)\nSELECT\n  NOW() AS time,\n  ((last_price - first_price) / first_price * 100) AS value\nFROM first_last",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -720,13 +725,13 @@ data:
             "x": 2,
             "y": 30
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "table",
               "rawSql": "WITH first_last AS (\n  SELECT\n    (ARRAY_AGG(price ORDER BY timestamp ASC))[1] AS first_price,\n    (ARRAY_AGG(price ORDER BY timestamp DESC))[1] AS last_price\n  FROM tick_history\n  WHERE price IS NOT NULL AND product = 'ETH-USD'\n)\nSELECT\n  NOW() AS time,\n  ((last_price - first_price) / first_price * 100) AS value\nFROM first_last",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -755,13 +760,13 @@ data:
             "x": 4,
             "y": 30
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "table",
               "rawSql": "WITH first_last AS (\n  SELECT\n    (ARRAY_AGG(price ORDER BY timestamp ASC))[1] AS first_price,\n    (ARRAY_AGG(price ORDER BY timestamp DESC))[1] AS last_price\n  FROM tick_history\n  WHERE price IS NOT NULL AND product = 'ADA-USD'\n)\nSELECT\n  NOW() AS time,\n  ((last_price - first_price) / first_price * 100) AS value\nFROM first_last",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -790,13 +795,13 @@ data:
             "x": 6,
             "y": 30
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "table",
               "rawSql": "SELECT NOW() AS time, COUNT(*) AS value FROM tick_history WHERE product = 'BTC-USD'",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -825,13 +830,13 @@ data:
             "x": 8,
             "y": 30
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "table",
               "rawSql": "SELECT NOW() AS time, COUNT(*) AS value FROM tick_history WHERE product = 'ETH-USD'",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -860,13 +865,13 @@ data:
             "x": 10,
             "y": 30
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "table",
               "rawSql": "SELECT NOW() AS time, COUNT(*) AS value FROM tick_history WHERE product = 'ADA-USD'",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {
@@ -895,13 +900,13 @@ data:
             "x": 12,
             "y": 30
           },
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"},
+          "datasource": {"type": "postgres", "uid": "postgres"},
           "targets": [
             {
               "format": "table",
               "rawSql": "SELECT\n  product AS \"Product\",\n  AVG(price) AS \"Avg Price\",\n  MIN(price) AS \"Min Price\",\n  MAX(price) AS \"Max Price\",\n  COUNT(*) AS \"Ticks\"\nFROM tick_history\nWHERE price IS NOT NULL\nGROUP BY product\nORDER BY product",
               "refId": "A",
-              "datasource": {"type": "grafana-postgresql-datasource", "uid": "postgres"}
+              "datasource": {"type": "postgres", "uid": "postgres"}
             }
           ],
           "fieldConfig": {

@@ -89,6 +89,9 @@ class CoinbaseIngester:
         # Set build info for metrics
         set_build_info("ingestor", version="0.1.0")
 
+        # Initialize WebSocket connection metric to 0 (disconnected)
+        ingestor_websocket_connected.set(0)
+
         self.stats: Dict[str, Any] = {
             "messages_received": 0,
             "messages_published": 0,

@@ -19,6 +19,25 @@ spec:
         app: snapshotter
         component: ledgerflux
     spec:
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:15-alpine
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for PostgreSQL to be ready..."
+          until pg_isready -h postgres -p 5432 -U postgres; do
+            echo "PostgreSQL is unavailable - sleeping"
+            sleep 2
+          done
+          echo "PostgreSQL is ready!"
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ledgerflux-postgres
+              key: PG_PASSWORD
       containers:
       - name: snapshotter
         image: ledgerflux-snapshotter:latest

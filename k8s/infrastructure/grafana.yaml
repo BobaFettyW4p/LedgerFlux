@@ -12,20 +12,21 @@ data:
       uid: prometheus
       access: proxy
       url: http://prometheus:9090
-      isDefault: true
-    - name: LedgerFlux PostgreSQL
-      type: grafana-postgresql-datasource
+      isDefault: false
+    - name: PostgreSQL
+      type: postgres
       uid: postgres
       access: proxy
-      url: postgres
-      database: ledgerflux
+      url: postgres:5432
       user: postgres
-      secureJsonData:
-        password: postgres
+      isDefault: true
       jsonData:
+        database: ledgerflux
         sslmode: disable
         postgresVersion: 1500
-        port: 5432
+        timescaledb: false
+      secureJsonData:
+        password: postgres
 
 ---
 apiVersion: v1
@@ -88,8 +89,6 @@ spec:
         env:
         - name: GF_SECURITY_ADMIN_PASSWORD
           value: admin
-        - name: GF_INSTALL_PLUGINS
-          value: grafana-piechart-panel
         volumeMounts:
         - name: grafana-data
           mountPath: /var/lib/grafana
