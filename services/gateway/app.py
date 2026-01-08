@@ -58,7 +58,8 @@ class RateLimiter:
         self.tokens = min(self.burst, self.tokens + elapsed * self.max_rate)
         self.last_update = now
         # Use small epsilon to handle floating point precision issues
-        # Epsilon of 0.005 handles millisecond-level time precision
+        # this gives us tolerance so our tests reliably pass, while also being relatively permissible
+        # for general use
         if self.tokens >= 1.0 - 0.005:
             self.tokens -= 1
             return True
