@@ -30,10 +30,10 @@
         "x": 0,
         "y": 0
       },
-      "datasource": "prometheus",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
-          "datasource": "prometheus",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "ledgerflux_gateway_clients_connected",
           "refId": "A"
         }
@@ -85,16 +85,17 @@
         "x": 6,
         "y": 0
       },
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
-          "expr": "ledgerflux_ingestor_websocket_connected",
-          "refId": "A",
-          "datasource": "prometheus"
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "expr": "ledgerflux_ingestor_websocket_connected{job=\"ingestor\"}",
+          "refId": "A"
         }
       ],
       "options": {
-        "colorMode": "background",
-        "graphMode": "none",
+        "colorMode": "value",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -110,13 +111,14 @@
           "mappings": [
             {
               "type": "value",
-              "value": "0",
-              "text": "Disconnected"
-            },
-            {
-              "type": "value",
-              "value": "1",
-              "text": "Connected"
+              "options": {
+                "0": {
+                  "text": "Disconnected"
+                },
+                "1": {
+                  "text": "Connected"
+                }
+              }
             }
           ],
           "thresholds": {
@@ -124,7 +126,11 @@
             "steps": [
               {
                 "color": "red",
-                "value": 0
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
               },
               {
                 "color": "green",
@@ -134,8 +140,7 @@
           },
           "unit": "none"
         }
-      },
-      "datasource": "prometheus"
+      }
     },
     {
       "id": 3,
@@ -152,7 +157,7 @@
           "expr": "rate(ledgerflux_ingestor_ticks_received_total[1m])",
           "legendFormat": "{{product}}",
           "refId": "A",
-          "datasource": "prometheus"
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
         }
       ],
       "yaxes": [
@@ -170,7 +175,7 @@
       "legend": {
         "show": true
       },
-      "datasource": "prometheus"
+      "datasource": {"type": "prometheus", "uid": "prometheus"}
     },
     {
       "id": 4,
@@ -187,7 +192,7 @@
           "expr": "rate(ledgerflux_gateway_messages_sent_total[1m])",
           "legendFormat": "{{product}} - {{message_type}}",
           "refId": "A",
-          "datasource": "prometheus"
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
         }
       ],
       "yaxes": [
@@ -205,7 +210,7 @@
       "legend": {
         "show": true
       },
-      "datasource": "prometheus"
+      "datasource": {"type": "prometheus", "uid": "prometheus"}
     },
     {
       "id": 5,
@@ -222,7 +227,7 @@
           "expr": "rate(ledgerflux_gateway_rate_limits_total[5m])",
           "legendFormat": "Rate Limits",
           "refId": "A",
-          "datasource": "prometheus"
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
         }
       ],
       "yaxes": [
@@ -273,7 +278,7 @@
         "noDataState": "no_data",
         "notifications": []
       },
-      "datasource": "prometheus"
+      "datasource": {"type": "prometheus", "uid": "prometheus"}
     },
     {
       "id": 6,
@@ -290,7 +295,7 @@
           "expr": "sum by (product) (ledgerflux_ingestor_ticks_received_total)",
           "legendFormat": "{{product}}",
           "refId": "A",
-          "datasource": "prometheus"
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
         }
       ],
       "yaxes": [
@@ -308,7 +313,7 @@
       "legend": {
         "show": true
       },
-      "datasource": "prometheus"
+      "datasource": {"type": "prometheus", "uid": "prometheus"}
     },
     {
       "id": 7,
@@ -325,7 +330,7 @@
           "expr": "ledgerflux_gateway_active_subscriptions",
           "legendFormat": "{{product}}",
           "refId": "A",
-          "datasource": "prometheus"
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
         }
       ],
       "yaxes": [
@@ -343,7 +348,7 @@
       "legend": {
         "show": true
       },
-      "datasource": "prometheus"
+      "datasource": {"type": "prometheus", "uid": "prometheus"}
     }
   ]
 }
