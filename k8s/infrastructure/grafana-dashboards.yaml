@@ -41,7 +41,7 @@ data:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "ledgerflux_gateway_clients_connected",
+              "expr": "sum(ledgerflux_gateway_clients_connected{job=\"gateway\"})",
               "refId": "A"
             }
           ],
@@ -196,8 +196,8 @@ data:
           },
           "targets": [
             {
-              "expr": "rate(ledgerflux_gateway_messages_sent_total[1m])",
-              "legendFormat": "{{product}} - {{message_type}}",
+              "expr": "sum by (product) (rate(ledgerflux_gateway_messages_sent_total{job=\"gateway\"}[1m]))",
+              "legendFormat": "{{product}}",
               "refId": "A",
               "datasource": {"type": "prometheus", "uid": "prometheus"}
             }
@@ -231,8 +231,8 @@ data:
           },
           "targets": [
             {
-              "expr": "rate(ledgerflux_gateway_rate_limits_total[5m])",
-              "legendFormat": "Rate Limits",
+              "expr": "sum by (pod) (rate(ledgerflux_gateway_rate_limits_total{job=\"gateway\"}[1m]))",
+              "legendFormat": "{{pod}}",
               "refId": "A",
               "datasource": {"type": "prometheus", "uid": "prometheus"}
             }
@@ -344,6 +344,169 @@ data:
             {
               "format": "short",
               "label": "Subscriptions"
+            },
+            {
+              "format": "short"
+            }
+          ],
+          "lines": true,
+          "fill": 1,
+          "linewidth": 2,
+          "legend": {
+            "show": true
+          },
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "id": 8,
+          "title": "Ingestor Ticks Published by Shard",
+          "type": "graph",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 24
+          },
+          "targets": [
+            {
+              "expr": "sum by (product, shard) (rate(ledgerflux_ingestor_ticks_published_total[1m]))",
+              "legendFormat": "{{product}} - shard {{shard}}",
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"}
+            }
+          ],
+          "yaxes": [
+            {
+              "format": "short",
+              "label": "Ticks/sec"
+            },
+            {
+              "format": "short"
+            }
+          ],
+          "lines": true,
+          "fill": 1,
+          "linewidth": 2,
+          "legend": {
+            "show": true
+          },
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "id": 9,
+          "title": "Gateway Connections (Active = Connected - Disconnected)",
+          "type": "graph",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 24
+          },
+          "targets": [
+            {
+              "expr": "sum(ledgerflux_gateway_clients_total{job=\"gateway\",status=\"connected\"}) - sum(ledgerflux_gateway_clients_total{job=\"gateway\",status=\"disconnected\"})",
+              "legendFormat": "Currently Active Clients",
+              "refId": "C",
+              "datasource": {"type": "prometheus", "uid": "prometheus"}
+            },
+            {
+              "expr": "sum(ledgerflux_gateway_clients_total{job=\"gateway\",status=\"connected\"})",
+              "legendFormat": "Cumulative Connects",
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"}
+            },
+            {
+              "expr": "sum(ledgerflux_gateway_clients_total{job=\"gateway\",status=\"disconnected\"})",
+              "legendFormat": "Cumulative Disconnects",
+              "refId": "B",
+              "datasource": {"type": "prometheus", "uid": "prometheus"}
+            }
+          ],
+          "yaxes": [
+            {
+              "format": "short",
+              "label": "Count"
+            },
+            {
+              "format": "short"
+            }
+          ],
+          "lines": true,
+          "fill": 0,
+          "linewidth": 2,
+          "legend": {
+            "show": true,
+            "values": true,
+            "current": true,
+            "alignAsTable": false
+          },
+          "seriesOverrides": [
+            {
+              "alias": "Currently Active Clients",
+              "linewidth": 3,
+              "fill": 2,
+              "color": "#73BF69"
+            }
+          ],
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "id": 10,
+          "title": "Gateway Subscription Operations",
+          "type": "graph",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 32
+          },
+          "targets": [
+            {
+              "expr": "sum by (product, operation) (rate(ledgerflux_gateway_subscriptions_total{job=\"gateway\"}[5m]))",
+              "legendFormat": "{{product}} - {{operation}}",
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"}
+            }
+          ],
+          "yaxes": [
+            {
+              "format": "short",
+              "label": "Operations/sec"
+            },
+            {
+              "format": "short"
+            }
+          ],
+          "lines": true,
+          "fill": 1,
+          "linewidth": 2,
+          "legend": {
+            "show": true
+          },
+          "datasource": {"type": "prometheus", "uid": "prometheus"}
+        },
+        {
+          "id": 11,
+          "title": "Ingestor WebSocket Reconnects",
+          "type": "graph",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 32
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(ledgerflux_ingestor_websocket_reconnects_total[5m]))",
+              "legendFormat": "Reconnects",
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"}
+            }
+          ],
+          "yaxes": [
+            {
+              "format": "short",
+              "label": "Reconnects/sec"
             },
             {
               "format": "short"
