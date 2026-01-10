@@ -3,6 +3,7 @@
 Test client for Market Data Gateway
 Usage: python test_client.py [--products BTC-USD,ETH-USD] [--no-snapshot] [--quiet]
 """
+
 import asyncio
 import json
 import argparse
@@ -11,7 +12,13 @@ import websockets
 
 
 class GatewayTestClient:
-    def __init__(self, uri: str, products: list[str], want_snapshot: bool = True, quiet: bool = False):
+    def __init__(
+        self,
+        uri: str,
+        products: list[str],
+        want_snapshot: bool = True,
+        quiet: bool = False,
+    ):
         self.uri = uri
         self.products = products
         self.want_snapshot = want_snapshot
@@ -36,7 +43,7 @@ class GatewayTestClient:
                 subscribe_msg = {
                     "op": "subscribe",
                     "products": self.products,
-                    "want_snapshot": self.want_snapshot
+                    "want_snapshot": self.want_snapshot,
                 }
                 await websocket.send(json.dumps(subscribe_msg))
                 print(f"Sent subscribe request (want_snapshot={self.want_snapshot})")
@@ -155,17 +162,15 @@ async def main():
     parser.add_argument(
         "--uri",
         default="ws://localhost:8000/ws",
-        help="WebSocket URI (default: ws://localhost:8000/ws)"
+        help="WebSocket URI (default: ws://localhost:8000/ws)",
     )
     parser.add_argument(
         "--products",
         default="BTC-USD",
-        help="Comma-separated list of products (default: BTC-USD)"
+        help="Comma-separated list of products (default: BTC-USD)",
     )
     parser.add_argument(
-        "--no-snapshot",
-        action="store_true",
-        help="Don't request snapshot on subscribe"
+        "--no-snapshot", action="store_true", help="Don't request snapshot on subscribe"
     )
 
     args = parser.parse_args()
@@ -175,9 +180,7 @@ async def main():
 
     # Create and run client
     client = GatewayTestClient(
-        uri=args.uri,
-        products=products,
-        want_snapshot=not args.no_snapshot
+        uri=args.uri, products=products, want_snapshot=not args.no_snapshot
     )
 
     await client.run()
