@@ -6,7 +6,6 @@ Usage: python test_client.py [--products BTC-USD,ETH-USD] [--no-snapshot] [--qui
 import asyncio
 import json
 import argparse
-import time
 from datetime import datetime
 import websockets
 
