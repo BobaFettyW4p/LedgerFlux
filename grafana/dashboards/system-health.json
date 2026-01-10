@@ -34,7 +34,7 @@
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "expr": "ledgerflux_gateway_clients_connected",
+          "expr": "sum(ledgerflux_gateway_clients_connected{job=\"gateway\"})",
           "refId": "A"
         }
       ],
