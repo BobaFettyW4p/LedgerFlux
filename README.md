@@ -7,14 +7,23 @@ A high-performance, distributed market data processing system built with Python,
 LedgerFlux demonstrates a production-ready microservices architecture for ingesting, processing, and serving real-time cryptocurrency market data. The system showcases:
 
 - **Event-driven architecture** using NATS JetStream for reliable message streaming
-- **Horizontal scalability** with sharded processing and StatefulSets
-- **Cloud-native deployment** on Kubernetes with Skaffold for development
-- **Observability** with Prometheus metrics and Grafana dashboards
+- **Horizontal scalability** via Kubernetes primitives.
+- **Easy Deployment** on Kubernetes via `make`, `skaffold` and `minikube`
+- **Observability** with Prometheus metrics and Grafana dashboards tracking both historical market data and system health
 - **Stateful snapshots** with PostgreSQL for point-in-time recovery
+
+## Pre-requisites
+
+`minikube v1.37.0` or later
+`make v4.4.1` or later
+`python v3.12` or later
+`uv v0.9.21` or later
+
+This project has been tested and works well on my desktop computer running Fedora and my laptop running Arch. I presume it would work well on different linux distributions, or on Mac or Windows, but I am not able to test on these systems.
 
 ## Quick-Start Guide
 
-This projects leverages `make` in order to provide an easy, transparent way to stand up or tear down our infrastructure.
+This projects leverages `make` in order to provide a way to stand up or tear down our infrastructure through a single command.
 
 ### make up 
 
@@ -23,19 +32,43 @@ The `up` make target will perform all of the steps to erect our infrastructure. 
 - spin up a new k8s cluster via minikube with the following specs:
 - 8 GB of RAM
 - 4 CPUs
-- 50 GB of disk space ()
+- 50 GB of disk space (this project has a cron job that automatically cleans up all data older than an hour. If you run your project with all 3 default coins, the project should be configured so it never runs out of space)
+NOTE: I haven't tested this with an existing minikube cluster. Make sure there is not an active 
+
+It will also build all of the needed docker images and deploy pods in kubernetes via `skaffold`.
+
+Once constructed, all pods should fully visible and functional in the `ledgerflux` namespace. To view the status:
+
+```kubectl get pods -n ledgerflux```
+```
+```
+
+### make [test|lint|typecheck]
+
+This project leverages `pytest` in order to perform unit testing. The `make test` target will initiate our test suite and will perform full unit testing.
+
+We use `ruff` to enforce linting. The `make lint` target will ensure our project adheres to best practices for production python code.
+
+Finally, we leverage `make mypy` to enforce type-checking on our repository. When the project was architected, `ty` was not yet released, but I have heard good things about it, and have greatly enjoyed all releases from Astral Labs I have used up to this point.
+I often said there were three hard problems in computer science: cache invalidation, naming things, and python package management. They're in the process of solving one of these problems, in my humble opinion.
+
+While you can test them yourself, this project has a CI/CD pipeline that runs all of these checks on PR, so you can instead opt to view past runs [here](https://github.com/BobaFettyW4p/LedgerFlux/actions)
+
+### make down
+
+Finally, make down will delete the minikube instance and all of the pods in it.
 
 ## Architecture
 
 ```
 Coinbase WebSocket → Ingestor → NATS JetStream → [Normalizers] → [Snapshotters] → PostgreSQL
                                                          ↓
-                                                   Gateway (WebSocket API)
+                                                      Gateway
 ```
 
 #### Data flow 
 
- In our infrastructure, the Ingestor connects to the Coinbase Websocket and connects to NATS Jetstream, which serves as a message broker
+ In our infrastructure, the Ingestor connects to the Coinbase Websocket and forwards messages to NATS Jetstream, which serves as a message broker. Jetstream conveys these messages to the Normalizers, which validates each tick, calculates the shard it should reside on, and then publish that tick onto the appropriate Jetstream stream to ensure it is sent to the appropriate snapshotter.
 
 ### Ingestor
 
@@ -54,17 +87,6 @@ After struggling to establish a connection and exploring the Coinbase documentat
 Until relatively recently, crypto markets didn't rely on FIX the way traditional securities do. Simple websocket feeds, like the one Coinbase provides free of charge and without authentication requirements, were used for many years in the early years of crypto to provide pricing data to prospective crypto traders. This has changed, but I have been led to believe that the websocket feeds are still used to track crypto prices by professional traders to this day.
 
 Therefore, while this was not part of the original plan for this project, it is an acceptable middle ground that 
-
-## Quick Start
-
-### Prerequisites
-
-- **[uv](https://docs.astral.sh/uv/)** - Fast Python package manager
-- [Minikube](https://minikube.sigs.k8s.io/docs/start/) (v1.30+)
-- [Skaffold](https://skaffold.dev/docs/install/) (v2.0+)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-
-**Note:** This project is built on python 3.12. Our `make install` make target will install and set this version if not already [installed|set]
 
 ### Getting Started (First Time Setup)
 
