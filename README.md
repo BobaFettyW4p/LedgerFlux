@@ -12,6 +12,19 @@ LedgerFlux demonstrates a production-ready microservices architecture for ingest
 - **Observability** with Prometheus metrics and Grafana dashboards
 - **Stateful snapshots** with PostgreSQL for point-in-time recovery
 
+## Quick-Start Guide
+
+This projects leverages `make` in order to provide an easy, transparent way to stand up or tear down our infrastructure.
+
+### make up 
+
+The `up` make target will perform all of the steps to erect our infrastructure. It will:
+
+- spin up a new k8s cluster via minikube with the following specs:
+- 8 GB of RAM
+- 4 CPUs
+- 50 GB of disk space ()
+
 ## Architecture
 
 ```
@@ -19,6 +32,28 @@ Coinbase WebSocket → Ingestor → NATS JetStream → [Normalizers] → [Snapsh
                                                          ↓
                                                    Gateway (WebSocket API)
 ```
+
+#### Data flow 
+
+ In our infrastructure, the Ingestor connects to the Coinbase Websocket and connects to NATS Jetstream, which serves as a message broker
+
+### Ingestor
+
+This component connects to the websocket data feed from Coinbase, and prepares it for transportation via Jetstream. It subscribes to the Coinbase feed, as well as the market_ticks NATS Jetstream stream to broker messages
+
+By default, the ingestor will subscribe to the websocket feed for Bitcoin (BTC-USD), Ethereum (ETH-USD) and Cardano (ADA-USD). These are relatively popular cryptocurrencies with relatively consistent and high trading volume, making them a good demonstration of the capabilities of this system. It is possible to modify these values by modifying the source json for the configMap for the kubernetes pod, located at `k8s/services/configs/ingestor.json`. NOTE: if you modify the list of subscribed products, the market data dashboards are not set up to handle that. Do it at your own peril!
+
+#### Why Coinbase?
+
+When I was originally conceptualizing and planning out the project, I wanted to utilize a FIX API. While this project attempts to mirror production workflows, it does not have the capital-backing of a production trading infrastructure, and so any FIX feed we utilized would have to be free.
+
+When searching different market feeds, I found documentation that led me to believe Coinbase's FIX feed would be free to access, and thus perfect for the project. 
+
+After struggling to establish a connection and exploring the Coinbase documentation thorouhly, I was able to determine that Coinbase requires a business account in order to access the FIX feed, a requirement which not only requires an account which would not have been a dealbreaker, but a minimum monthly fee/investment, which was.
+
+Until relatively recently, crypto markets didn't rely on FIX the way traditional securities do. Simple websocket feeds, like the one Coinbase provides free of charge and without authentication requirements, were used for many years in the early years of crypto to provide pricing data to prospective crypto traders. This has changed, but I have been led to believe that the websocket feeds are still used to track crypto prices by professional traders to this day.
+
+Therefore, while this was not part of the original plan for this project, it is an acceptable middle ground that 
 
 ## Quick Start
 
