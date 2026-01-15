@@ -15,11 +15,14 @@ LedgerFlux demonstrates a production-ready microservices architecture for ingest
 ## Pre-requisites
 
 `minikube v1.37.0` or later
+
 `make v4.4.1` or later
+
 `python v3.12` or later
+
 `uv v0.9.21` or later
 
-This project has been tested and works well on my desktop computer running Fedora and my laptop running Arch. I presume it would work well on different linux distributions, or on Mac or Windows, but I am not able to test on these systems.
+This project has been tested and works well on my desktop computer running Fedora and my laptop running Arch.
 
 ## Quick-Start Guide
 
