@@ -37,16 +37,6 @@ spec:
             name: nats
             port:
               number: 8222
-  - host: minio.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: minio
-            port:
-              number: 9001
   - host: grafana.local
     http:
       paths:
