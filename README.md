@@ -1,6 +1,14 @@
 # LedgerFlux
 
-A high-performance, distributed market data processing system built with Python, Kubernetes, and NATS JetStream.
+A high-performance, distributed market data processing system demonstrating event driven architecture, horizontal scaling, and observability best practices.
+
+Real-time market data pipeline built with Python, Kubernetes, NATS Jetstream, and PostgreSQL.
+
+```
+Coinbase WebSocket → Ingestor → NATS JetStream → [Normalizers] → [Snapshotters] → PostgreSQL
+                                                         ↓
+                                                      Gateway
+```
 
 ## Overview
 
@@ -14,7 +22,7 @@ LedgerFlux demonstrates a production-ready microservices architecture for ingest
 
 ## Pre-requisites
 
-`minikube v1.37.0` or later (it is possible to deploy this infrastructure on any kubernetes cluster, but the quick start 
+`minikube v1.37.0` or later (it is possible to deploy this infrastructure on any kubernetes cluster, but the quick start is designed to work with minikube
 
 `make v4.4.1` or later (as a requirement for POSIX-compliance, any up to date linux distribution or Mac OS will have this installed by default)
 
@@ -70,7 +78,7 @@ make down
 
 </details>
 
-This projects leverages `make` in order to provide a way to stand up or tear down our infrastructure through a single command.
+This project leverages `make` in order to provide a way to stand up or tear down our infrastructure through a single command.
 
 ### make up 
 
@@ -80,7 +88,7 @@ The `up` make target will perform all of the steps to erect our infrastructure. 
 - 8 GB of RAM
 - 4 CPUs
 - 50 GB of disk space (this project has a cron job that automatically cleans up all data older than an hour. If you run your project with all 3 default coins, the project should be configured so it never runs out of space)
-NOTE: I haven't tested this with an existing minikube cluster. Verify this with `minikube status`
+NOTE: I haven't tested this with an existing minikube cluster running. Verify minikube is not currently running with `minikube status` before spinning up the infrastructure.
 
 It will also build all of the needed docker images and deploy pods in kubernetes via `skaffold`.
 
@@ -106,15 +114,9 @@ While you can test them yourself, this project has a CI/CD pipeline that runs al
 
 Finally, make down will delete the minikube instance and all of the pods in it.
 
-## Architecture
+## Components
 
-```
-Coinbase WebSocket → Ingestor → NATS JetStream → [Normalizers] → [Snapshotters] → PostgreSQL
-                                                         ↓
-                                                      Gateway
-```
-
-#### Data flow 
+### Data flow 
 
  In our infrastructure, the Ingestor connects to the Coinbase Websocket and forwards messages to NATS Jetstream, which serves as a message broker. Jetstream conveys these messages to the Normalizers, which validates each tick, calculates the shard it should reside on, and then publish that tick onto the appropriate Jetstream stream to ensure it is sent to the appropriate snapshotter. The snapshotter then writes every tick to the `tick_history` table in the postgres database. When clients subscribe to specific feeds via the gateway, they are read up to date price data directly from postgres.
 
@@ -130,7 +132,7 @@ When I was originally conceptualizing and planning out the project, I wanted to 
 
 When searching different market feeds, I found documentation that led me to believe Coinbase's FIX feed would be free to access, and thus perfect for the project. 
 
-After struggling beginning architecting the system around the Coinbase FIX database, and subsequently struggling to establish a connection, after exploring the Coinbase documentation thorouhly, I was able to determine that Coinbase requires a business account in order to access the FIX feed, a requirement which includes a monthly trading volume in Coinbase.
+After architecting the system around the Coinbase FIX feed, and subsequently struggling to establish a connection, after exploring the Coinbase documentation thorouhly, I was able to determine that Coinbase requires a business account in order to access the FIX feed, a requirement which includes a monthly trading volume in Coinbase.
 
 Until relatively recently, crypto markets didn't rely on FIX the way traditional securities and markets do. Simple websocket feeds, like the one Coinbase provides free of charge and without authentication requirements, were used for many years in the early years of crypto to provide pricing data to prospective crypto traders. This has changed, but I have been led to believe that the websocket feeds are still used to track crypto prices by professional traders to this day.
 
@@ -138,7 +140,7 @@ Therefore, while this was not part of the original plan for this project, it is 
 
 ## NATS Jetstream
 
-While Kafka is the generally accepted standard for message brokers in the current age, NATS Jetstream has certain advantages that made it a better option for this project. First, NATS Jetstream is significantly leaner and easier to set up and configure. While configuring this project to use Kafka (and the complexity it brings) would be a worthwhile exercise, selecting Jetstream let us configure a message broker quickly and focus on the more interesting components of the project. In addition, Jetstream's focus on speed and low overhead make it a natural selection for this pseudo-production trading architecture. While certain components of trading systems are more suited for Kafka (a market maker who handles thousands of transactions a second may prefer to use Kafka in order to safely record each of these transactions), I thnk Jetstream is a perfectly suitable choice for our project. It serves as a message broker with multiple streams that conveys messages between each of our components. Different components will subscribe to and publish messages on different streams in order to keep them separated.
+While Kafka is the generally accepted standard for message brokers in the current age, NATS Jetstream has certain advantages that made it a better option for this project. First, NATS Jetstream is significantly leaner and easier to set up and configure. In addition, Jetstream's focus on speed and low overhead make it a natural selection for this pseudo-production trading architecture. While certain components of trading systems are more suited for Kafka (a market maker who handles thousands of transactions a second may prefer to use Kafka in order to safely record each of these transactions), I thnk Jetstream is a perfectly suitable choice for our project. It serves as a message broker with multiple streams that conveys messages between each of our components. Different components will subscribe to and publish messages on different streams in order to keep them separated.
 
 ## Normalizer
 
@@ -223,21 +225,25 @@ The snapshotter receives incoming tickets from each normalizer containing verifi
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-While there is a logical relationship between both tables in our database (through the `product` key), they are not directly linked by a foreign key. This allows for a quicker lookup on each table, helping us compensate for the weaknesses of the RDBMS approach in our infrastructure.
+No foreign key exists between the tables in order to maximize performance. The identical `product` field provides a logical connection between the tables and is used by our components to associate data between the tables. This method avoids the overhead of foreign keys while also logically joining two similar tables.
 
 ## Gateway
 
-The gateway provides clients a websocket-based method to subscribe to particular financial instruments and receive regular updates. Subscribed clients receive incremental updates from Jetstream. It leverages a token-bucket based rate limiter to better manage load, and uses `fastapi` and `uvicorn` to maintain asynchronous operation.
+The gateway provides clients a websocket-based method to subscribe to particular financial instruments and receive regular updates. Subscribed clients receive incremental updates from Jetstream. It  a token-bucket based rate limiter to better manage load, and uses `fastapi` and `uvicorn` to maintain asynchronous operation.
 
 ### Gateway quick-start
 
-`make up` does not create a fully-active gateway as that requires forwarding a port in order to avoid clashing with any currently open ports. If port 8000 is not in use on your system, start the gatway with:
+`make up` does not create a fully-active gateway in order to avoid clashing with any currently open ports. If port 8000 is not in use on your system, start the gatway with:
 
 ```bash
 make gateway-ui
+
+# in the event port 8000 is in use, you can either modify the make gateway-ui make target, or manually forward the port as follows:
+
+kubectl port-forward -n ledgerflux svc/gateway $PORT:8000
 ```
 
-Once complete, there will be a simple landing page at http://localhost:8000 in your browser outlining how to connect to the gateway to subscribe for updates. You may also use the `test_client.py` present in the root of this directory to establish such connections.
+Once complete, there will be a simple landing page at http://localhost:$PORT in your browser outlining how to connect to the gateway to subscribe for updates. You may also use the `test_client.py` present in the root of this directory to establish such connections.
 
 
 ## Observability
@@ -264,11 +270,14 @@ This project has comprehensive unit test coverage for all critical business logi
 #### Running Tests
 
 ```bash
-# Run tests with coverage (opens HTML report in browser)
-make test
+make test # run full test suite with coverage report
 
-# if one would prefer, the test suite can be confirmed by viewing past CI/CD runs from the Actions tab
+make lint # verify code style using ruff
+
+make typecheck #verify types using mypy
 ```
+
+**CI/CD** All tests run automatically on PR [View workflow runs →](https://github.com/BobaFettyW4p/LedgerFlux/actions)
 
 This will:
 1. Run all unit tests with coverage
@@ -308,3 +317,8 @@ tests/
         └── test_validation.py
 ```
 
+## Questions or Feedback
+
+This is a portfolio project intended to demonstrate my interest in and grasp of trading infrastructure and DevOps design patterns.
+
+If you have any feedback, please feel free to contact me at matthew.ivancic91@gmail.com
